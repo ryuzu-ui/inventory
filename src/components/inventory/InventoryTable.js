@@ -26,9 +26,16 @@ export default function InventoryTable({ items = [], setItems }) {
 	const [showModal, setShowModal] = useState(false);
 
 	const addItem = (newItem) => {
-		setItems([...items, { ...newItem, id: Date.now() }]);
-		setShowModal(false);
-	};
+	const updated = [...items, { ...newItem, id: Date.now() }];
+
+	setItems(updated);
+
+	// ✅ SAVE TO LOCALSTORAGE
+	localStorage.setItem("inventory_items", JSON.stringify(updated));
+
+	setShowModal(false);
+};
+
 
 	return (
 		<div style={{ width: "100%" }}>

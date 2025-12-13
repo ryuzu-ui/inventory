@@ -1,26 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "../components/layout/Header";
 import Sidebar from "../components/layout/Sidebar";
 import InventoryTable from "../components/inventory/InventoryTable";
 
 export default function AdminPage() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [items, setItems] = useState(() => {
+		const saved = localStorage.getItem("inventory");
+		return saved ? JSON.parse(saved) : [];
+	});
 
-	// ✅ INVENTORY STATE IS HERE
-	const [items, setItems] = useState([]); // admin will add items
+	useEffect(() => {
+		localStorage.setItem("inventory", JSON.stringify(items));
+	}, [items]);
 
 	return (
 		<div style={{ height: "100vh", background: "white" }}>
 			<Header onMenuClick={() => setSidebarOpen(true)} />
 			<Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-			<div
-				style={{
-					padding: "20px",
-					paddingTop: "20px"
-				}}
-			>
-				{/* ✅ PASS items + setItems */}
+			<div style={{ padding: "20px" }}>
 				<InventoryTable items={items} setItems={setItems} />
 			</div>
 		</div>
