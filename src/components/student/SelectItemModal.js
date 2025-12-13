@@ -19,31 +19,53 @@ export default function SelectItemModal({ onClose, onSave }) {
 				{
 					id: item.id,
 					description: item.description,
-					qty: 1,
-					released: "",
-					returned: "",
-					unreturned: "",
-					remarks: ""
+					qty: 1
 				}
 			]);
 		}
 	};
 
+	const updateQty = (id, qty) => {
+		setSelected(selected.map((i) => (i.id === id ? { ...i, qty } : i)));
+	};
+
 	return (
 		<>
-			{/* OVERLAY */}
-			<div style={overlay} onClick={onClose} />
+			<div
+				style={{
+					position: "fixed",
+					top: 0,
+					left: 0,
+					width: "100vw",
+					height: "100vh",
+					background: "rgba(0,0,0,0.35)",
+					zIndex: 20
+				}}
+				onClick={onClose}
+			/>
 
-			{/* MODAL */}
-			<div style={modal}>
+			<div
+				style={{
+					position: "fixed",
+					top: "50%",
+					left: "50%",
+					transform: "translate(-50%, -50%)",
+					background: "white",
+					padding: "20px",
+					borderRadius: "10px",
+					width: "500px",
+					zIndex: 21
+				}}
+			>
 				<b style={{ fontSize: "16px" }}>Select Items</b>
 
-				<table style={{ ...table, marginTop: "10px" }}>
+				<table style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
 					<thead>
 						<tr>
 							<th></th>
 							<th>Description</th>
 							<th>Available</th>
+							<th>Qty</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -58,18 +80,29 @@ export default function SelectItemModal({ onClose, onSave }) {
 								</td>
 								<td>{item.description}</td>
 								<td>{item.available}</td>
+								<td>
+									<input
+										type="number"
+										value={selected.find((i) => i.id === item.id)?.qty || 1}
+										onChange={(e) => updateQty(item.id, parseInt(e.target.value))}
+										style={{ width: "50px" }}
+									/>
+								</td>
 							</tr>
 						))}
 					</tbody>
 				</table>
 
 				<div style={{ textAlign: "right", marginTop: "15px" }}>
-					<button onClick={onClose} style={btn}>
+					<button
+						onClick={onClose}
+						style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #ccc", background: "#eee", marginRight: "6px" }}
+					>
 						Cancel
 					</button>
 					<button
 						onClick={() => onSave(selected)}
-						style={{ ...btn, ...btnPrimary }}
+						style={{ padding: "6px 12px", borderRadius: "6px", border: "none", background: "#1a73e8", color: "white" }}
 					>
 						Add Selected
 					</button>
@@ -78,48 +111,3 @@ export default function SelectItemModal({ onClose, onSave }) {
 		</>
 	);
 }
-
-/* ===== STYLES ===== */
-
-const overlay = {
-	position: "fixed",
-	top: 0,
-	left: 0,
-	width: "100vw",
-	height: "100vh",
-	background: "rgba(0,0,0,0.35)",
-	zIndex: 20
-};
-
-const modal = {
-	position: "fixed",
-	top: "50%",
-	left: "50%",
-	transform: "translate(-50%, -50%)",
-	background: "white",
-	padding: "20px",
-	borderRadius: "10px",
-	width: "500px",
-	zIndex: 21
-};
-
-const table = {
-	width: "100%",
-	borderCollapse: "collapse",
-	fontSize: "13px"
-};
-
-const btn = {
-	padding: "6px 12px",
-	borderRadius: "6px",
-	border: "1px solid #ccc",
-	background: "#eee",
-	cursor: "pointer",
-	marginLeft: "6px"
-};
-
-const btnPrimary = {
-	background: "#1a73e8",
-	color: "white",
-	border: "none"
-};

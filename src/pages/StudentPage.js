@@ -15,12 +15,11 @@ export default function StudentPage() {
 		controlNo: ""
 	});
 
-	const handleSelect = (id, qty) => {
+	const handleSelect = (id, qty, description) => {
 		setSelectedItems((prev) => {
 			const exists = prev.find((i) => i.id === id);
-			if (exists)
-				return prev.map((i) => (i.id === id ? { ...i, qty } : i));
-			return [...prev, { id, qty }];
+			if (exists) return prev.map((i) => (i.id === id ? { ...i, qty } : i));
+			return [...prev, { id, qty, description }];
 		});
 	};
 
@@ -29,40 +28,19 @@ export default function StudentPage() {
 			<StudentHeader onMenuClick={() => setSidebarOpen(true)} />
 			<StudentSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-			{/* CONTENT */}
-			<div style={{ padding: "20px", paddingTop: "80px" }}>
+			<div style={{ padding: "20px", paddingTop: "60px" }}>
 				<h2>Borrow Form</h2>
 
-				{/* TOP INFO */}
-				<div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-					<input
-						type="text"
-						placeholder="Student Name"
-						value={studentInfo.name}
-						onChange={(e) =>
-							setStudentInfo({ ...studentInfo, name: e.target.value })
-						}
-					/>
-					<input
-						type="text"
-						placeholder="Laboratory No"
-						value={studentInfo.labNo}
-						onChange={(e) =>
-							setStudentInfo({ ...studentInfo, labNo: e.target.value })
-						}
-					/>
-					<input
-						type="text"
-						placeholder="Control No"
-						value={studentInfo.controlNo}
-						onChange={(e) =>
-							setStudentInfo({ ...studentInfo, controlNo: e.target.value })
-						}
-					/>
-				</div>
+				
 
-				<BorrowTable products={products} onSelect={handleSelect} />
+				{/* TABLE OF ITEMS ONLY */}
+				<BorrowTable
+					products={products}
+					onSelect={handleSelect}
+					selectedItems={selectedItems}
+				/>
 
+				{/* EXPORT BUTTON */}
 				<button
 					style={{
 						marginTop: "20px",
