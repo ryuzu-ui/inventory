@@ -1,155 +1,103 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-export default function SelectItemModal({ onClose, onSave }) {
-	const [inventory, setInventory] = useState([]);
-	const [selected, setSelected] = useState([]);
+export default function SelectItemModal({
+	open,
+	onClose,
+	inventory,
+	selectedItems,
+	setSelectedItems
+}) {
+	const [search, setSearch] = useState("");
 
-	// 🔹 LOAD INVENTORY FROM ADMIN (localStorage)
-	useEffect(() => {
-		const saved = localStorage.getItem("inventory");
-		if (saved) {
-			setInventory(JSON.parse(saved));
-		}
-	}, []);
+	if (!open) return null;
 
 	const toggleItem = (item) => {
-		const exists = selected.find((i) => i.id === item.id);
-
-		if (exists) {
-			setSelected(selected.filter((i) => i.id !== item.id));
+		if (selectedItems.some((i) => i.id === item.id)) {
+			setSelectedItems(selectedItems.filter((i) => i.id !== item.id));
 		} else {
-			setSelected([
-				...selected,
-				{
-					id: item.id,
-					tools: item.tools,
-					qty: 1
-				}
-			]);
+			setSelectedItems([...selectedItems, { ...item, qty: 1 }]);
 		}
 	};
 
-	const updateQty = (id, qty) => {
-		setSelected(
-			selected.map((i) =>
-				i.id === id ? { ...i, qty } : i
-			)
-		);
-	};
+	// 🔍 FILTER INVENTORY BY SEARCH
+	const filteredInventory = inventory.filter((item) =>
+		item.name.toLowerCase().includes(search.toLowerCase())
+	);
 
 	return (
-		<>
-			{/* BACKDROP */}
-			<div
-				style={{
-					position: "fixed",
-					inset: 0,
-					background: "rgba(0,0,0,0.35)",
-					zIndex: 20
-				}}
-				onClick={onClose}
-			/>
+		<div style={overlay}>
+			<div style={modal}>
+				<h3 style={{ marginBottom: "10px" }}>Select Items</h3>
 
-			{/* MODAL */}
-			<div
-				style={{
-					position: "fixed",
-					top: "50%",
-					left: "50%",
-					transform: "translate(-50%, -50%)",
-					background: "white",
-					padding: "20px",
-					borderRadius: "10px",
-					width: "520px",
-					zIndex: 21
-				}}
-			>
-				<b style={{ fontSize: "16px" }}>Select Items</b>
-
-				<table
+				{/* 🔍 SEARCH INPUT */}
+				<input
+					type="text"
+					placeholder="Search tool..."
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
 					style={{
 						width: "100%",
-						borderCollapse: "collapse",
-						marginTop: "10px"
+						padding: "8px",
+						marginBottom: "12px",
+						borderRadius: "4px",
+						border: "1px solid #444",
+						background: "#111",
+						color: "white"
 					}}
-				>
-					<thead>
-						<tr>
-							<th></th>
-							<th>Description</th>
-							<th>Available</th>
-							<th>Qty</th>
-						</tr>
-					</thead>
+				/>
 
-					<tbody>
-						{inventory.length === 0 ? (
-							<tr>
-								<td colSpan="4" style={{ textAlign: "center", padding: "15px" }}>
-									No inventory available
-								</td>
-							</tr>
-						) : (
-							inventory.map((item) => (
-								<tr key={item.id}>
-									<td>
-										<input
-											type="checkbox"
-											checked={!!selected.find((i) => i.id === item.id)}
-											onChange={() => toggleItem(item)}
-										/>
-									</td>
+				{/* ITEM LIST */}
+				<div style={{ maxHeight: "220px", overflowY: "auto" }}>
+					{filteredInventory.length === 0 && (
+						<div style={{ opacity: 0.6 }}>No items found</div>
+					)}
 
-									<td>{item.tools}</td>
-									<td>{item.qty}</td>
+					{filteredInventory.map((item) => (
+						<label
+							key={item.id}
+							style={{
+								display: "flex",
+								alignItems: "center",
+								marginBottom: "8px",
+								cursor: "pointer"
+							}}
+						>
+							<input
+								type="checkbox"
+								checked={selectedItems.some((i) => i.id === item.id)}
+								onChange={() => toggleItem(item)}
+								style={{ marginRight: "8px" }}
+							/>
+							{item.name}
+						</label>
+					))}
+				</div>
 
-									<td>
-										<input
-											type="number"
-											min="1"
-											value={
-												selected.find((i) => i.id === item.id)?.qty || 1
-											}
-											onChange={(e) =>
-												updateQty(item.id, Number(e.target.value))
-											}
-											style={{ width: "55px" }}
-										/>
-									</td>
-								</tr>
-							))
-						)}
-					</tbody>
-				</table>
-
+				{/* ACTION */}
 				<div style={{ textAlign: "right", marginTop: "15px" }}>
-					<button
-						onClick={onClose}
-						style={{
-							padding: "6px 12px",
-							borderRadius: "6px",
-							border: "1px solid #ccc",
-							background: "#eee",
-							marginRight: "6px"
-						}}
-					>
-						Cancel
-					</button>
-
-					<button
-						onClick={() => onSave(selected)}
-						style={{
-							padding: "6px 12px",
-							borderRadius: "6px",
-							border: "none",
-							background: "#1a73e8",
-							color: "white"
-						}}
-					>
-						Add Selected
-					</button>
+					<button onClick={onClose}>Done</button>
 				</div>
 			</div>
-		</>
+		</div>
 	);
 }
+
+/* ===== STYLES ===== */
+
+const overlay = {
+	position: "fixed",
+	inset: 0,
+	background: "rgba(0,0,0,0.6)",
+	display: "flex",
+	alignItems: "center",
+	justifyContent: "center",
+	zIndex: 1000
+};
+
+const modal = {
+	width: "300px",
+	background: "#1a1a1a",
+	color: "white",
+	padding: "20px",
+	borderRadius: "8px"
+};

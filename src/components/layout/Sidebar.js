@@ -1,4 +1,4 @@
-export default function Sidebar({ open, onClose }) {
+export default function Sidebar({ open, onClose, onNavigate }) {
 	return (
 		<>
 			{/* OVERLAY */}
@@ -43,16 +43,30 @@ export default function Sidebar({ open, onClose }) {
 					← Back
 				</div>
 
-				<MenuItem label="Dashboard" />
-				<MenuItem label="Inventory" />
+				<MenuItem
+					label="Dashboard"
+					onClick={() => {
+						onNavigate("dashboard");
+						onClose();
+					}}
+				/>
+
+				<MenuItem
+					label="Inventory"
+					onClick={() => {
+						onNavigate("inventory");
+						onClose();
+					}}
+				/>
 			</div>
 		</>
 	);
 }
 
-function MenuItem({ label }) {
+function MenuItem({ label, onClick }) {
 	return (
 		<div
+			onClick={onClick}
 			style={{
 				padding: "12px 14px",
 				borderRadius: "8px",
