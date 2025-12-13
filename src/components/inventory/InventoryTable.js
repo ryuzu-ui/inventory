@@ -1,113 +1,160 @@
 import { useState } from "react";
-import AddEditItemModal from "./AddEditItemModal";
+import AddItemModal from "./AddItemModal";
 
-export default function InventoryTable() {
-	const [items, setItems] = useState([
-		{ id: 1, name: "Tripod", qty: 10 },
-		{ id: 2, name: "Uniform", qty: 5 },
-	]);
+/* TABLE STYLES */
+const th = {
+	padding: "10px",
+	border: "1px solid #e0e0e0",
+	fontWeight: "600",
+	fontSize: "12px",
+	textAlign: "center",
+	whiteSpace: "nowrap",
+	background: "#f5f7fa"
+};
 
-	const [modalOpen, setModalOpen] = useState(false);
-	const [editItem, setEditItem] = useState(null);
+const td = {
+	padding: "8px",
+	border: "1px solid #e0e0e0",
+	fontSize: "12px",
+	textAlign: "center",
+	whiteSpace: "nowrap",
+	overflow: "hidden",
+	textOverflow: "ellipsis"
+};
 
-	const handleSave = (item) => {
-		if (editItem) {
-			setItems(items.map(i => i.id === item.id ? item : i));
-		} else {
-			setItems([...items, { ...item, id: Date.now() }]);
-		}
-		setModalOpen(false);
-		setEditItem(null);
-	};
+export default function InventoryTable({ items = [], setItems }) {
+	const [showModal, setShowModal] = useState(false);
 
-	const handleDelete = (id) => {
-		if (!window.confirm("Delete this item?")) return;
-		setItems(items.filter(i => i.id !== id));
+	const addItem = (newItem) => {
+		setItems([...items, { ...newItem, id: Date.now() }]);
+		setShowModal(false);
 	};
 
 	return (
-		<div id="inventory">
-			<h1 style={{ color: "#1a73e8" }}>Inventory</h1>
+		<div style={{ width: "100%" }}>
+			{/* TOP BAR */}
+			<div style={{
+				display: "flex",
+				justifyContent: "space-between",
+				alignItems: "center",
+				marginBottom: "15px"
+			}}>
+				<div style={{ fontSize: "22px", fontWeight: "600", color: "white" }}>
+					Items
+					<button
+						onClick={() => setShowModal(true)}
+						style={{
+							marginLeft: "15px",
+							background: "#0d47a1",
+							color: "white",
+							border: "none",
+							padding: "8px 16px",
+							borderRadius: "6px",
+							cursor: "pointer",
+							fontSize: "13px"
+						}}
+					>
+						+ Create
+					</button>
+				</div>
 
-			<button
-				style={{
-					background: "#fff9c4",
-					padding: "10px 20px",
-					border: "1px solid #1a73e8",
-					color: "#1a73e8",
-					borderRadius: "6px",
-					cursor: "pointer",
-					marginBottom: "15px"
-				}}
-				onClick={() => setModalOpen(true)}
-			>
-				➕ Add Item
-			</button>
+				<div>
+					<button style={btn}>PDF</button>
+					<button style={btn}>CSV</button>
+					<button style={btn}>Import CSV</button>
+				</div>
+			</div>
 
-			<table
-				style={{
-					width: "100%",
-					borderCollapse: "collapse",
-					background: "white"
-				}}
-			>
-				<thead>
-					<tr style={{ background: "#fff9c4" }}>
-						<th>ID</th>
-						<th>Description</th>
-						<th>Quantity</th>
-						<th>Actions</th>
-					</tr>
-				</thead>
-
-				<tbody>
-					{items.map((item) => (
-						<tr key={item.id}>
-							<td>{item.id}</td>
-							<td>{item.name}</td>
-							<td>{item.qty}</td>
-							<td>
-								<button
-									style={{
-										background: "#1a73e8",
-										color: "white",
-										border: "none",
-										padding: "6px 12px",
-										borderRadius: "6px",
-										marginRight: "8px",
-										cursor: "pointer"
-									}}
-									onClick={() => { setEditItem(item); setModalOpen(true); }}
-								>
-									Edit
-								</button>
-
-								<button
-									style={{
-										background: "#e53935",
-										color: "white",
-										border: "none",
-										padding: "6px 12px",
-										borderRadius: "6px",
-										cursor: "pointer"
-									}}
-									onClick={() => handleDelete(item.id)}
-								>
-									Delete
-								</button>
-							</td>
+			{/* TABLE CONTAINER */}
+			<div style={{
+				background: "white",
+				borderRadius: "8px",
+				overflow: "hidden",
+				boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
+			}}>
+				<table
+					style={{
+						width: "100%",
+						borderCollapse: "collapse",
+						tableLayout: "fixed"
+					}}
+				>
+					<thead>
+						<tr>
+							{[
+								"No.",
+								"Tools",
+								"Particular",
+								"Date",
+								"Qty",
+								"Add Qty",
+								"Life Span",
+								"Replaced",
+								"Total",
+								"Missing",
+								"Breakage",
+								"Defective",
+								"Total Loss",
+								"End",
+								"CHED",
+								"TESDA",
+								"DEPED"
+							].map(h => (
+								<th key={h} style={th}>{h}</th>
+							))}
 						</tr>
-					))}
-				</tbody>
-			</table>
+					</thead>
 
-			{modalOpen &&
-				<AddEditItemModal
-					close={() => { setModalOpen(false); setEditItem(null); }}
-					save={handleSave}
-					item={editItem}
+					<tbody>
+						{items.length === 0 ? (
+							<tr>
+								<td colSpan="17" style={{ padding: "20px", textAlign: "center", color: "#777" }}>
+									No items yet. Click <b>+ Create</b> to add.
+								</td>
+							</tr>
+						) : (
+							items.map((item, i) => (
+								<tr key={item.id}>
+									<td style={td}>{i + 1}</td>
+									<td style={td}>{item.tools}</td>
+									<td style={td}>{item.particular}</td>
+									<td style={td}>{item.purchaseDate}</td>
+									<td style={td}>{item.qty}</td>
+									<td style={td}>{item.additionalQty}</td>
+									<td style={td}>{item.lifeSpan}</td>
+									<td style={td}>{item.replaced}</td>
+									<td style={td}>{item.totalInventory}</td>
+									<td style={td}>{item.missing}</td>
+									<td style={td}>{item.breakage}</td>
+									<td style={td}>{item.defective}</td>
+									<td style={td}>{item.totalLoss}</td>
+									<td style={td}>{item.endInventory}</td>
+									<td style={td}>{item.ched}</td>
+									<td style={td}>{item.tesda}</td>
+									<td style={td}>{item.deped}</td>
+								</tr>
+							))
+						)}
+					</tbody>
+				</table>
+			</div>
+
+			{showModal &&
+				<AddItemModal
+					onSave={addItem}
+					onClose={() => setShowModal(false)}
 				/>
 			}
 		</div>
 	);
 }
+
+const btn = {
+	marginLeft: "6px",
+	padding: "7px 12px",
+	borderRadius: "6px",
+	border: "1px solid #dadce0",
+	background: "#f1f3f4",
+	cursor: "pointer",
+	fontSize: "12px"
+};

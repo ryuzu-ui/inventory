@@ -1,14 +1,18 @@
-export default function Header({ onMenuClick }) {
+export default function StudentHeader({ onMenuClick }) {
 	return (
 		<div
 			style={{
-				height: "56px",
+				height: "60px",
 				background: "#0d47a1",
 				color: "white",
 				display: "flex",
 				alignItems: "center",
-				padding: "0 16px",
-				boxSizing: "border-box"
+				padding: "0 20px",
+				position: "fixed",
+				top: 0,
+				left: 0,
+				right: 0,
+				zIndex: 5
 			}}
 		>
 			<button
@@ -19,13 +23,13 @@ export default function Header({ onMenuClick }) {
 					border: "none",
 					color: "white",
 					cursor: "pointer",
-					marginRight: "12px"
+					marginRight: "15px"
 				}}
 			>
 				☰
 			</button>
 
-			<b>CTHM Inventory System</b>
+			<b>Student Borrowing Portal</b>
 		</div>
 	);
 }
