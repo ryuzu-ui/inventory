@@ -22,7 +22,7 @@ export default function SelectItemModal({ onClose, onSave }) {
 				...selected,
 				{
 					id: item.id,
-					description: item.particular,
+					tools: item.tools,
 					qty: 1
 				}
 			]);
@@ -100,7 +100,7 @@ export default function SelectItemModal({ onClose, onSave }) {
 										/>
 									</td>
 
-									<td>{item.particular}</td>
+									<td>{item.tools}</td>
 									<td>{item.qty}</td>
 
 									<td>

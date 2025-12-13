@@ -24,18 +24,37 @@ const td = {
 
 export default function InventoryTable({ items = [], setItems }) {
 	const [showModal, setShowModal] = useState(false);
+	const [selectedItem, setSelectedItem] = useState(null);
+	const [editingItem, setEditingItem] = useState(null);
 
-	const addItem = (newItem) => {
-	const updated = [...items, { ...newItem, id: Date.now() }];
+	/* CREATE / UPDATE */
+	const saveItem = (data) => {
+		let updated;
 
-	setItems(updated);
+		if (editingItem) {
+			updated = items.map((item) =>
+				item.id === editingItem.id ? { ...item, ...data } : item
+			);
+		} else {
+			updated = [...items, { ...data, id: Date.now() }];
+		}
 
-	// ✅ SAVE TO LOCALSTORAGE
-	localStorage.setItem("inventory_items", JSON.stringify(updated));
+		setItems(updated);
+		localStorage.setItem("inventory", JSON.stringify(updated));
 
-	setShowModal(false);
-};
+		setShowModal(false);
+		setEditingItem(null);
+	};
 
+	/* DELETE */
+	const deleteItem = (id) => {
+		if (!window.confirm("Delete selected item?")) return;
+
+		const updated = items.filter(item => item.id !== id);
+		setItems(updated);
+		localStorage.setItem("inventory", JSON.stringify(updated));
+		setSelectedItem(null);
+	};
 
 	return (
 		<div style={{ width: "100%" }}>
@@ -46,22 +65,34 @@ export default function InventoryTable({ items = [], setItems }) {
 				alignItems: "center",
 				marginBottom: "15px"
 			}}>
-				<div style={{ fontSize: "22px", fontWeight: "600", color: "white" }}>
-					Items
+				<div style={{ display: "flex", gap: "8px" }}>
 					<button
-						onClick={() => setShowModal(true)}
-						style={{
-							marginLeft: "15px",
-							background: "#0d47a1",
-							color: "white",
-							border: "none",
-							padding: "8px 16px",
-							borderRadius: "6px",
-							cursor: "pointer",
-							fontSize: "13px"
+						onClick={() => {
+							setEditingItem(null);
+							setShowModal(true);
 						}}
+						style={primaryBtn}
 					>
 						+ Create
+					</button>
+
+					<button
+						disabled={!selectedItem}
+						onClick={() => {
+							setEditingItem(selectedItem);
+							setShowModal(true);
+						}}
+						style={warnBtn(!selectedItem)}
+					>
+						Update
+					</button>
+
+					<button
+						disabled={!selectedItem}
+						onClick={() => deleteItem(selectedItem.id)}
+						style={dangerBtn(!selectedItem)}
+					>
+						Delete
 					</button>
 				</div>
 
@@ -72,7 +103,7 @@ export default function InventoryTable({ items = [], setItems }) {
 				</div>
 			</div>
 
-			{/* TABLE CONTAINER */}
+			{/* TABLE */}
 			<div style={{
 				background: "white",
 				borderRadius: "8px",
@@ -115,13 +146,23 @@ export default function InventoryTable({ items = [], setItems }) {
 					<tbody>
 						{items.length === 0 ? (
 							<tr>
-								<td colSpan="17" style={{ padding: "20px", textAlign: "center", color: "#777" }}>
+								<td colSpan="17" style={{ padding: "20px", textAlign: "center" }}>
 									No items yet. Click <b>+ Create</b> to add.
 								</td>
 							</tr>
 						) : (
 							items.map((item, i) => (
-								<tr key={item.id}>
+								<tr
+									key={item.id}
+									onClick={() => setSelectedItem(item)}
+									style={{
+										cursor: "pointer",
+										background:
+											selectedItem?.id === item.id
+												? "#e8f0fe"
+												: "transparent"
+									}}
+								>
 									<td style={td}>{i + 1}</td>
 									<td style={td}>{item.tools}</td>
 									<td style={td}>{item.particular}</td>
@@ -146,16 +187,22 @@ export default function InventoryTable({ items = [], setItems }) {
 				</table>
 			</div>
 
-			{showModal &&
+			{/* MODAL */}
+			{showModal && (
 				<AddItemModal
-					onSave={addItem}
-					onClose={() => setShowModal(false)}
+					onSave={saveItem}
+					onClose={() => {
+						setShowModal(false);
+						setEditingItem(null);
+					}}
+					item={editingItem}
 				/>
-			}
+			)}
 		</div>
 	);
 }
 
+/* BUTTON STYLES */
 const btn = {
 	marginLeft: "6px",
 	padding: "7px 12px",
@@ -165,3 +212,33 @@ const btn = {
 	cursor: "pointer",
 	fontSize: "12px"
 };
+
+const primaryBtn = {
+	background: "#0d47a1",
+	color: "white",
+	border: "none",
+	padding: "8px 16px",
+	borderRadius: "6px",
+	cursor: "pointer",
+	fontSize: "13px"
+};
+
+const warnBtn = (disabled) => ({
+	background: disabled ? "#ccc" : "#fbbc04",
+	color: "black",
+	border: "none",
+	padding: "8px 16px",
+	borderRadius: "6px",
+	cursor: disabled ? "not-allowed" : "pointer",
+	fontSize: "13px"
+});
+
+const dangerBtn = (disabled) => ({
+	background: disabled ? "#ccc" : "#d93025",
+	color: "white",
+	border: "none",
+	padding: "8px 16px",
+	borderRadius: "6px",
+	cursor: disabled ? "not-allowed" : "pointer",
+	fontSize: "13px"
+});

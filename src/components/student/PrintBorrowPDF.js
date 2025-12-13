@@ -6,7 +6,7 @@ export function PrintBorrowPDF({ name, labNo, controlNo, items }) {
 		return `
 			<tr>
 				<td>${i + 1}</td>
-				<td>${item ? item.description : ""}</td>
+				<td>${item ? item.tools : ""}</td>
 				<td>${item ? item.qty : ""}</td>
 				<td></td>
 				<td></td>

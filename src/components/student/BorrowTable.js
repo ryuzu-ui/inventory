@@ -42,7 +42,12 @@ export default function BorrowTable() {
 	};
 
 	const updateQty = (id, qty) => {
-		setItems(items.map(i => i.id === id ? { ...i, qty } : i));
+		setItems(items.map(i => {
+			if (i.id !== id) return i;
+
+			const safeQty = Math.max(1, Math.min(qty, i.maxQty));
+			return { ...i, qty: safeQty };
+		}));
 	};
 
 	return (
@@ -112,15 +117,17 @@ export default function BorrowTable() {
 						items.map((item, i) => (
 							<tr key={item.id}>
 								<td style={td}>{i + 1}</td>
-								<td style={td}>{item.particular}</td>
+								<td style={td}>{item.tools}</td>
 								<td style={td}>
 									<input
 										type="number"
 										min="1"
+										max={item.maxQty}      // 👈 LIMIT
 										value={item.qty}
-										onChange={(e) => updateQty(item.id, e.target.value)}
+										onChange={(e) => updateQty(item.id, Number(e.target.value))}
 										style={{ width: "60px", textAlign: "center" }}
 									/>
+
 								</td>
 							</tr>
 						))
@@ -148,11 +155,12 @@ export default function BorrowTable() {
 									onChange={() =>
 										toggleItem({
 											id: item.id,
-											particular: item.particular
+											tools: item.tools,
+											maxQty: item.qty   // 👈 available from admin
 										})
 									}
 								/>
-								{" "}{item.particular}
+								{" "}{item.tools}
 							</div>
 						))}
 

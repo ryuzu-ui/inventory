@@ -11,8 +11,12 @@ export default function AdminPage() {
 	});
 
 	useEffect(() => {
-		localStorage.setItem("inventory", JSON.stringify(items));
-	}, [items]);
+		const saved = localStorage.getItem("inventory");
+		if (saved) {
+			setItems(JSON.parse(saved));
+		}
+	}, []);
+
 
 	return (
 		<div style={{ height: "100vh", background: "white" }}>

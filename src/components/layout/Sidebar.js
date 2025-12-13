@@ -8,7 +8,7 @@ export default function Sidebar({ open, onClose }) {
 					style={{
 						position: "fixed",
 						inset: 0,
-						background: "rgba(0,0,0,0.3)",
+						background: "rgba(0,0,0,0.35)",
 						zIndex: 9
 					}}
 				/>
@@ -30,30 +30,17 @@ export default function Sidebar({ open, onClose }) {
 					boxSizing: "border-box"
 				}}
 			>
-				{/* TOP ROW */}
+				{/* BACK (TOP) */}
 				<div
+					onClick={onClose}
 					style={{
-						display: "flex",
-						alignItems: "center",
-						justifyContent: "space-between",
-						marginBottom: "25px"
+						marginBottom: "25px",
+						cursor: "pointer",
+						fontWeight: "bold",
+						color: "#0d47a1"
 					}}
 				>
-					<h3 style={{ margin: 0 }}>Admin Panel</h3>
-
-					<button
-						onClick={onClose}
-						style={{
-							background: "transparent",
-							border: "none",
-							color: "#1a73e8",
-							cursor: "pointer",
-							fontSize: "14px",
-							fontWeight: "500"
-						}}
-					>
-						← Back
-					</button>
+					← Back
 				</div>
 
 				<MenuItem label="Dashboard" />
@@ -66,9 +53,17 @@ export default function Sidebar({ open, onClose }) {
 function MenuItem({ label }) {
 	return (
 		<div
-			style={menuItem}
+			style={{
+				padding: "12px 14px",
+				borderRadius: "8px",
+				cursor: "pointer",
+				marginBottom: "8px",
+				fontWeight: "500",
+				color: "#333",
+				transition: "0.2s"
+			}}
 			onMouseEnter={(e) => {
-				e.currentTarget.style.background = "#1a73e8";
+				e.currentTarget.style.background = "#0d47a1";
 				e.currentTarget.style.color = "white";
 			}}
 			onMouseLeave={(e) => {
@@ -80,12 +75,3 @@ function MenuItem({ label }) {
 		</div>
 	);
 }
-
-const menuItem = {
-	padding: "12px",
-	borderRadius: "8px",
-	cursor: "pointer",
-	marginBottom: "6px",
-	transition: "0.2s",
-	fontWeight: "500"
-};
