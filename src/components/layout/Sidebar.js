@@ -1,7 +1,6 @@
 export default function Sidebar({ open, onClose, onNavigate }) {
 	return (
 		<>
-			{/* OVERLAY */}
 			{open && (
 				<div
 					onClick={onClose}
@@ -9,12 +8,11 @@ export default function Sidebar({ open, onClose, onNavigate }) {
 						position: "fixed",
 						inset: 0,
 						background: "rgba(0,0,0,0.35)",
-						zIndex: 9
+						zIndex: 9,
 					}}
 				/>
 			)}
 
-			{/* SIDEBAR */}
 			<div
 				style={{
 					position: "fixed",
@@ -27,17 +25,16 @@ export default function Sidebar({ open, onClose, onNavigate }) {
 					transition: "left 0.3s ease",
 					zIndex: 10,
 					padding: "20px",
-					boxSizing: "border-box"
+					boxSizing: "border-box",
 				}}
 			>
-				{/* BACK (TOP) */}
 				<div
 					onClick={onClose}
 					style={{
 						marginBottom: "25px",
 						cursor: "pointer",
 						fontWeight: "bold",
-						color: "#0d47a1"
+						color: "#0d47a1",
 					}}
 				>
 					← Back
@@ -50,11 +47,17 @@ export default function Sidebar({ open, onClose, onNavigate }) {
 						onClose();
 					}}
 				/>
-
 				<MenuItem
 					label="Inventory"
 					onClick={() => {
 						onNavigate("inventory");
+						onClose();
+					}}
+				/>
+				<MenuItem
+					label="Calendar"
+					onClick={() => {
+						onNavigate("calendar");
 						onClose();
 					}}
 				/>
@@ -74,7 +77,7 @@ function MenuItem({ label, onClick }) {
 				marginBottom: "8px",
 				fontWeight: "500",
 				color: "#333",
-				transition: "0.2s"
+				transition: "0.2s",
 			}}
 			onMouseEnter={(e) => {
 				e.currentTarget.style.background = "#0d47a1";

@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import Header from "../components/layout/Header";
 import Sidebar from "../components/layout/Sidebar";
 import InventoryTable from "../components/inventory/InventoryTable";
-import Dashboard from "../components/admin/Dashboard"; // <-- make sure meron ka nito
+import Dashboard from "../components/admin/Dashboard";
+import Calendar from "../components/admin/Calendar";
 
 export default function AdminPage() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
-	const [page, setPage] = useState("dashboard"); // <-- NEW
+	const [page, setPage] = useState("dashboard");
 
 	const [items, setItems] = useState(() => {
 		const saved = localStorage.getItem("inventory");
@@ -14,14 +15,9 @@ export default function AdminPage() {
 	});
 
 	useEffect(() => {
-
 		document.title = "Admin | Inventory System";
-		
 		const saved = localStorage.getItem("inventory");
-		
-		if (saved) {
-			setItems(JSON.parse(saved));
-		}
+		if (saved) setItems(JSON.parse(saved));
 	}, []);
 
 	return (
@@ -31,7 +27,7 @@ export default function AdminPage() {
 			<Sidebar
 				open={sidebarOpen}
 				onClose={() => setSidebarOpen(false)}
-				onNavigate={setPage}   // <-- IMPORTANT
+				onNavigate={setPage}
 			/>
 
 			<div style={{ padding: "20px" }}>
@@ -39,6 +35,7 @@ export default function AdminPage() {
 				{page === "inventory" && (
 					<InventoryTable items={items} setItems={setItems} />
 				)}
+				{page === "calendar" && <Calendar />}
 			</div>
 		</div>
 	);
