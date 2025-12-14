@@ -9,6 +9,7 @@ export default function AdminPage() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [page, setPage] = useState("dashboard");
 
+	// ✅ SINGLE SOURCE OF TRUTH
 	const [items, setItems] = useState(() => {
 		const saved = localStorage.getItem("inventory");
 		return saved ? JSON.parse(saved) : [];
@@ -16,8 +17,17 @@ export default function AdminPage() {
 
 	useEffect(() => {
 		document.title = "Admin | Inventory System";
-		const saved = localStorage.getItem("inventory");
-		if (saved) setItems(JSON.parse(saved));
+	}, []);
+
+	// ✅ sync kapag may ibang nag-edit ng localStorage
+	useEffect(() => {
+		const handleStorage = () => {
+			const saved = localStorage.getItem("inventory");
+			if (saved) setItems(JSON.parse(saved));
+		};
+
+		window.addEventListener("storage", handleStorage);
+		return () => window.removeEventListener("storage", handleStorage);
 	}, []);
 
 	return (
@@ -31,10 +41,20 @@ export default function AdminPage() {
 			/>
 
 			<div style={{ padding: "20px" }}>
-				{page === "dashboard" && <Dashboard />}
-				{page === "inventory" && (
-					<InventoryTable items={items} setItems={setItems} />
+				{page === "dashboard" && (
+					<Dashboard
+						items={items}
+						setItems={setItems}
+					/>
 				)}
+
+				{page === "inventory" && (
+					<InventoryTable
+						items={items}
+						setItems={setItems}
+					/>
+				)}
+
 				{page === "calendar" && <Calendar />}
 			</div>
 		</div>

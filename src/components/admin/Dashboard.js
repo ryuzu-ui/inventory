@@ -1,34 +1,76 @@
-export default function Dashboard() {
-	const inventory = JSON.parse(localStorage.getItem("inventory") || "[]");
+import { useState } from "react";
+import { loadReservations } from "../services/reservationService";
+import { approveReservation } from "../services/approveService";
+import { releaseReservation } from "../services/releaseService";
 
-	const totalItems = inventory.length;
-	const totalQty = inventory.reduce(
-		(sum, item) => sum + Number(item.qty || 0),
-		0
-	);
+export default function Dashboard() {
+	const [reservations, setReservations] = useState(loadReservations());
+
+	const refresh = () => {
+		setReservations(loadReservations());
+	};
 
 	return (
 		<div>
-			<h2>Dashboard</h2>
+			<h2>Reservations</h2>
 
-			<div style={{ display: "flex", gap: "15px", marginTop: "15px" }}>
-				<div style={card}>
-					<h4>Total Items</h4>
-					<b>{totalItems}</b>
-				</div>
+			<table border="1" cellPadding="8" width="100%">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Schedule</th>
+						<th>Items</th>
+						<th>Status</th>
+						<th>Action</th>
+					</tr>
+				</thead>
 
-				<div style={card}>
-					<h4>Total Quantity</h4>
-					<b>{totalQty}</b>
-				</div>
-			</div>
+				<tbody>
+					{reservations.length === 0 ? (
+						<tr>
+							<td colSpan="5" align="center">No reservations</td>
+						</tr>
+					) : (
+						reservations.map(r => (
+							<tr key={r.id}>
+								<td>{r.name}</td>
+								<td>
+									{r.schedule
+										? `${r.schedule.day} ${r.schedule.time}`
+										: "No schedule"}
+								</td>
+								<td>
+									{r.items.map(i => (
+										<div key={i.id}>
+											{i.tools} × {i.qty}
+										</div>
+									))}
+								</td>
+								<td>{r.status}</td>
+								<td>
+									{r.status === "reserved" && (
+										<button onClick={() => {
+											approveReservation(r);
+											refresh();
+										}}>
+											Approve
+										</button>
+									)}
+
+									{r.status === "approved" && (
+										<button onClick={() => {
+											releaseReservation(r);
+											refresh();
+										}}>
+											Return
+										</button>
+									)}
+								</td>
+							</tr>
+						))
+					)}
+				</tbody>
+			</table>
 		</div>
 	);
 }
-
-const card = {
-	padding: "16px",
-	background: "#f5f7fa",
-	borderRadius: "8px",
-	minWidth: "160px"
-};

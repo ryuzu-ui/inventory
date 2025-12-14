@@ -5,6 +5,8 @@ import {
 	loadScheduleInventory,
 	saveScheduleInventory
 } from "../services/scheduleInventory";
+import { addReservation } from "../services/reservationService";
+
 
 /* ================= STYLES ================= */
 
@@ -69,6 +71,22 @@ export default function BorrowTable() {
 		setInventory(schedInventory);
 	}, []);
 
+	/* ===== LOAD SAVED BORROW ITEMS ===== */
+	useEffect(() => {
+		const saved = JSON.parse(
+			localStorage.getItem("student_borrow_items") || "[]"
+		);
+		setItems(saved);
+	}, []);
+
+	/* ===== AUTO SAVE BORROW ITEMS ===== */
+	useEffect(() => {
+		localStorage.setItem(
+			"student_borrow_items",
+			JSON.stringify(items)
+		);
+	}, [items]);
+
 	/* ===== ADD / REMOVE ITEM ===== */
 	const toggleItem = (item) => {
 		const exists = items.find(i => i.id === item.id);
@@ -99,35 +117,47 @@ export default function BorrowTable() {
 		}));
 	};
 
-	/* ===== CONFIRM BORROW ===== */
+	/* ===== CONFIRM BORROW (SAVE LANG) ===== */
 	const confirmBorrow = () => {
-		if (items.length === 0) {
-			alert("No items selected");
-			return;
-		}
-
 		const user = getUser();
 		if (!user) return;
 
-		const updatedInventory = inventory.map(inv => {
-			const borrowed = items.find(i => i.id === inv.id);
-			if (!borrowed) return inv;
+		for (let item of items) {
+			const inv = inventory.find(i => i.id === item.id);
+			if (!inv || item.qty > inv.qty) {
+				alert(`Not enough stock for ${item.tools}`);
+				return;
+			}
+		}
 
-			return {
-				...inv,
-				qty: inv.qty - borrowed.qty
-			};
+		const reservation = {
+			id: Date.now(),
+			studentId: user.id,
+			name,
+			section: user.section,
+			schedule: user.schedule,
+			items,
+			status: "reserved",
+			createdAt: new Date().toISOString()
+		};
+
+		addReservation(reservation);
+
+		// deduct inventory immediately (reserve)
+		const updated = inventory.map(inv => {
+			const item = items.find(i => i.id === inv.id);
+			if (!item) return inv;
+			return { ...inv, qty: inv.qty - item.qty };
 		});
 
-		// ✅ SAVE PER SCHEDULE
-		saveScheduleInventory(user, updatedInventory);
-
-		// ✅ UPDATE UI
-		setInventory(updatedInventory);
+		saveScheduleInventory(user, updated);
+		setInventory(updated);
 		setItems([]);
 
-		alert("Borrow confirmed for your schedule!");
+		alert("Reservation successful");
 	};
+
+
 
 	/* ===== SEARCH FILTER ===== */
 	const filteredInventory = inventory.filter(item =>

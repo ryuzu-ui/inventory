@@ -144,7 +144,7 @@ export default function InventoryTable({ items = [], setItems }) {
 				<thead>
 					<tr>
 						{[
-							"No","Tools","Particular","Date","Qty","Add Qty","Life Span",
+							"No","Tools","Particular","Date","Qty","Borrowed","Add Qty","Life Span",
 							"Replaced","Total","Missing","Breakage","Defective",
 							"Total Loss","End","CHED","TESDA","DEPED"
 						].map(h => <th key={h} style={th}>{h}</th>)}
@@ -173,6 +173,7 @@ export default function InventoryTable({ items = [], setItems }) {
 								<td style={td}>{item.particular}</td>
 								<td style={td}>{item.purchaseDate}</td>
 								<td style={td}>{item.qty}</td>
+								<td style={td}>{item.borrowed || 0}</td>
 								<td style={td}>{item.additionalQty}</td>
 								<td style={td}>{item.lifeSpan}</td>
 								<td style={td}>{item.replaced}</td>
