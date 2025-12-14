@@ -6,6 +6,7 @@ import {
 	saveScheduleInventory
 } from "../services/scheduleInventory";
 
+/* ================= STYLES ================= */
 
 const th = {
 	padding: "10px",
@@ -23,6 +24,32 @@ const td = {
 	textAlign: "center"
 };
 
+const btnPrimary = {
+	padding: "8px 14px",
+	background: "#0d47a1",
+	color: "#fff",
+	border: "none",
+	borderRadius: "6px",
+	cursor: "pointer"
+};
+
+const backdrop = {
+	position: "fixed",
+	inset: 0,
+	background: "rgba(0,0,0,0.4)",
+	zIndex: 20
+};
+
+const modal = {
+	background: "#fff",
+	width: "520px",
+	margin: "8% auto",
+	padding: "20px",
+	borderRadius: "8px"
+};
+
+/* ================= COMPONENT ================= */
+
 export default function BorrowTable() {
 	const [inventory, setInventory] = useState([]);
 	const [items, setItems] = useState([]);
@@ -33,7 +60,7 @@ export default function BorrowTable() {
 	const [labNo, setLabNo] = useState("");
 	const [controlNo, setControlNo] = useState("");
 
-	/* LOAD INVENTORY */
+	/* ===== LOAD INVENTORY PER SCHEDULE ===== */
 	useEffect(() => {
 		const user = getUser();
 		if (!user) return;
@@ -42,8 +69,7 @@ export default function BorrowTable() {
 		setInventory(schedInventory);
 	}, []);
 
-
-	/* ADD / REMOVE ITEM */
+	/* ===== ADD / REMOVE ITEM ===== */
 	const toggleItem = (item) => {
 		const exists = items.find(i => i.id === item.id);
 
@@ -62,7 +88,7 @@ export default function BorrowTable() {
 		}
 	};
 
-	/* UPDATE QTY */
+	/* ===== UPDATE QUANTITY ===== */
 	const updateQty = (id, qty) => {
 		setItems(items.map(i => {
 			if (i.id !== id) return i;
@@ -73,11 +99,7 @@ export default function BorrowTable() {
 		}));
 	};
 
-	/* SEARCH FILTER */
-	const filteredInventory = inventory.filter(item =>
-		item.tools.toLowerCase().includes(search.toLowerCase())
-	);
-
+	/* ===== CONFIRM BORROW ===== */
 	const confirmBorrow = () => {
 		if (items.length === 0) {
 			alert("No items selected");
@@ -97,24 +119,43 @@ export default function BorrowTable() {
 			};
 		});
 
+		// ✅ SAVE PER SCHEDULE
 		saveScheduleInventory(user, updatedInventory);
+
+		// ✅ UPDATE UI
 		setInventory(updatedInventory);
 		setItems([]);
 
 		alert("Borrow confirmed for your schedule!");
 	};
 
+	/* ===== SEARCH FILTER ===== */
+	const filteredInventory = inventory.filter(item =>
+		item.tools.toLowerCase().includes(search.toLowerCase())
+	);
 
 	return (
 		<div>
-			{/* BORROWER INFO */}
+			{/* ===== BORROWER INFO ===== */}
 			<div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-				<input placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
-				<input placeholder="Lab No" value={labNo} onChange={e => setLabNo(e.target.value)} />
-				<input placeholder="Control Number" value={controlNo} onChange={e => setControlNo(e.target.value)} />
+				<input
+					placeholder="Name"
+					value={name}
+					onChange={e => setName(e.target.value)}
+				/>
+				<input
+					placeholder="Lab No"
+					value={labNo}
+					onChange={e => setLabNo(e.target.value)}
+				/>
+				<input
+					placeholder="Control Number"
+					value={controlNo}
+					onChange={e => setControlNo(e.target.value)}
+				/>
 			</div>
 
-			{/* BUTTONS */}
+			{/* ===== BUTTONS ===== */}
 			<div
 				style={{
 					display: "flex",
@@ -130,16 +171,15 @@ export default function BorrowTable() {
 				<div style={{ display: "flex", gap: "10px" }}>
 					<button
 						style={btnPrimary}
-						onClick={() => PrintBorrowPDF({ name, labNo, controlNo, items })}
+						onClick={() =>
+							PrintBorrowPDF({ name, labNo, controlNo, items })
+						}
 					>
 						Print Borrow Form
 					</button>
 
 					<button
-						style={{
-							...btnPrimary,
-							background: "#2e7d32"
-						}}
+						style={{ ...btnPrimary, background: "#2e7d32" }}
 						onClick={confirmBorrow}
 					>
 						Confirm Borrow
@@ -147,13 +187,14 @@ export default function BorrowTable() {
 				</div>
 			</div>
 
-
-			{/* BORROW TABLE */}
+			{/* ===== BORROW TABLE ===== */}
 			<table style={{ width: "100%", borderCollapse: "collapse" }}>
 				<thead>
 					<tr>
 						<th style={{ ...th, width: "5%" }}>No</th>
-						<th style={{ ...th, width: "90%", textAlign: "left" }}>Tools</th>
+						<th style={{ ...th, width: "90%", textAlign: "left" }}>
+							Tools
+						</th>
 						<th style={{ ...th, width: "5%" }}>Qty</th>
 					</tr>
 				</thead>
@@ -168,13 +209,11 @@ export default function BorrowTable() {
 					) : (
 						items.map((item, i) => (
 							<tr key={item.id}>
-								<td style={{ ...td, width: "5%" }}>{i + 1}</td>
-
-								<td style={{ ...td, width: "90%", textAlign: "left" }}>
+								<td style={td}>{i + 1}</td>
+								<td style={{ ...td, textAlign: "left" }}>
 									{item.tools}
 								</td>
-
-								<td style={{ ...td, width: "5%" }}>
+								<td style={td}>
 									<input
 										type="number"
 										min="1"
@@ -183,10 +222,7 @@ export default function BorrowTable() {
 										onChange={(e) =>
 											updateQty(item.id, Number(e.target.value))
 										}
-										style={{
-											width: "45px",
-											textAlign: "center"
-										}}
+										style={{ width: "45px", textAlign: "center" }}
 									/>
 								</td>
 							</tr>
@@ -195,23 +231,17 @@ export default function BorrowTable() {
 				</tbody>
 			</table>
 
-
-			{/* SELECT ITEM MODAL */}
+			{/* ===== SELECT ITEM MODAL ===== */}
 			{showModal && (
 				<div style={backdrop}>
 					<div style={modal}>
 						<h3>Select Items</h3>
 
-						{/* SEARCH */}
 						<input
 							placeholder="Search tools..."
 							value={search}
 							onChange={e => setSearch(e.target.value)}
-							style={{
-								width: "100%",
-								padding: "6px",
-								marginBottom: "10px"
-							}}
+							style={{ width: "100%", padding: "6px", marginBottom: "10px" }}
 						/>
 
 						<div style={{ maxHeight: "260px", overflowY: "auto" }}>
@@ -219,7 +249,9 @@ export default function BorrowTable() {
 								<thead>
 									<tr>
 										<th style={{ ...th, width: "5%" }}></th>
-										<th style={{ ...th, width: "90%", textAlign: "left" }}>Tools</th>
+										<th style={{ ...th, width: "90%", textAlign: "left" }}>
+											Tools
+										</th>
 										<th style={{ ...th, width: "5%" }}>Avail</th>
 									</tr>
 								</thead>
@@ -234,27 +266,22 @@ export default function BorrowTable() {
 									) : (
 										filteredInventory.map(item => (
 											<tr key={item.id}>
-												<td style={{ ...td, width: "5%" }}>
+												<td style={td}>
 													<input
 														type="checkbox"
 														checked={!!items.find(i => i.id === item.id)}
 														onChange={() => toggleItem(item)}
 													/>
 												</td>
-
-												<td style={{ ...td, width: "90%", textAlign: "left" }}>
+												<td style={{ ...td, textAlign: "left" }}>
 													{item.tools}
 												</td>
-
-												<td style={{ ...td, width: "5%" }}>
-													{item.qty}
-												</td>
+												<td style={td}>{item.qty}</td>
 											</tr>
 										))
 									)}
 								</tbody>
 							</table>
-
 						</div>
 
 						<div style={{ textAlign: "right", marginTop: "15px" }}>
@@ -266,27 +293,3 @@ export default function BorrowTable() {
 		</div>
 	);
 }
-
-/* STYLES */
-const btnPrimary = {
-	padding: "8px 14px",
-	background: "#0d47a1",
-	color: "#fff",
-	border: "none",
-	borderRadius: "6px",
-	cursor: "pointer"
-};
-
-const backdrop = {
-	position: "fixed",
-	inset: 0,
-	background: "rgba(0,0,0,0.4)"
-};
-
-const modal = {
-	background: "#fff",
-	width: "520px",
-	margin: "8% auto",
-	padding: "20px",
-	borderRadius: "8px"
-};

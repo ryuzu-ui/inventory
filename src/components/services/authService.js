@@ -28,6 +28,18 @@ const USERS = [
 			day: "Saturday",
 			time: "11:00-13:00"
 		}
+	},
+
+	{
+		id: "stu-003",
+		username: "studentC",
+		password: "1234",
+		role: "student",
+		section: "BSHM-2A",
+		schedule: {
+			day: "Saturday",
+			time: "08:00-10:00"
+		}
 	}
 ];
 

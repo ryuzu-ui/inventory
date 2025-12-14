@@ -16,15 +16,22 @@ function getScheduleKey(user) {
 export function loadScheduleInventory(user) {
 	if (!user || !user.schedule) return [];
 
-	const base = JSON.parse(localStorage.getItem(BASE_INVENTORY_KEY)) || [];
+	const base =
+		JSON.parse(localStorage.getItem(BASE_INVENTORY_KEY)) || [];
+
 	const key = getScheduleKey(user);
-
 	const saved = localStorage.getItem(key);
-	if (saved) return JSON.parse(saved);
 
-	// First time this schedule is used → clone base inventory
-	localStorage.setItem(key, JSON.stringify(base));
-	return base;
+	// ✅ if schedule inventory already exists → use it
+	if (saved) {
+		return JSON.parse(saved);
+	}
+
+	// ✅ first time schedule → CLONE admin inventory
+	const cloned = base.map(item => ({ ...item }));
+	localStorage.setItem(key, JSON.stringify(cloned));
+
+	return cloned;
 }
 
 /**

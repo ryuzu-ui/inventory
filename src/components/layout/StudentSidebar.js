@@ -8,8 +8,8 @@ export default function StudentSidebar({ open, onClose, onNavigate }) {
 					style={{
 						position: "fixed",
 						inset: 0,
-						background: "rgba(0,0,0,0.35)",
-						zIndex: 19
+						background: "rgba(0,0,0,0.5)",
+						zIndex: 9,
 					}}
 				/>
 			)}
@@ -25,31 +25,53 @@ export default function StudentSidebar({ open, onClose, onNavigate }) {
 					background: "#f8f9fa",
 					borderRight: "1px solid #ddd",
 					transition: "left 0.3s ease",
-					zIndex: 20, // 🔥 TAKPAN HEADER
+					zIndex: 10,
 					padding: "20px",
-					boxSizing: "border-box"
+					boxSizing: "border-box",
 				}}
 			>
+				{/* BACK */}
 				<div
 					onClick={onClose}
 					style={{
 						marginBottom: "25px",
 						cursor: "pointer",
 						fontWeight: "bold",
-						color: "#0d47a1"
+						color: "#0d47a1",
 					}}
 				>
 					← Back
 				</div>
 
-				<MenuItem label="Home" onClick={() => onNavigate("home")} />
-				<MenuItem label="Borrow" onClick={() => onNavigate("borrow")} />
-				<MenuItem label="Calendar" onClick={() => onNavigate("calendar")} />
+				<MenuItem
+					label="Home"
+					onClick={() => {
+						onNavigate("home");
+						onClose();
+					}}
+				/>
+
+				<MenuItem
+					label="Borrow Items"
+					onClick={() => {
+						onNavigate("borrow");
+						onClose();
+					}}
+				/>
+
+				<MenuItem
+					label="Calendar"
+					onClick={() => {
+						onNavigate("calendar");
+						onClose();
+					}}
+				/>
 			</div>
 		</>
 	);
 }
 
+/* ✅ MENU ITEM DEFINITION (ETO ANG KULANG MO) */
 function MenuItem({ label, onClick }) {
 	return (
 		<div
@@ -61,7 +83,7 @@ function MenuItem({ label, onClick }) {
 				marginBottom: "8px",
 				fontWeight: "500",
 				color: "#333",
-				transition: "0.2s"
+				transition: "0.2s",
 			}}
 			onMouseEnter={(e) => {
 				e.currentTarget.style.background = "#0d47a1";
