@@ -7,99 +7,160 @@ import {
 	addDays,
 	isSameMonth,
 	addMonths,
-	isWeekend,
 	format,
 } from "date-fns";
 
-export default function Calendar() {
+/* ================= STYLES ================= */
+
+const th = {
+	padding: "10px",
+	border: "1px solid #e0e0e0",
+	fontWeight: "600",
+	fontSize: "12px",
+	textAlign: "center",
+	background: "#f5f7fa"
+};
+
+const td = {
+	padding: "8px",
+	border: "1px solid #e0e0e0",
+	fontSize: "12px",
+	textAlign: "center"
+};
+
+const primaryBtn = {
+	background: "#0d47a1",
+	color: "#fff",
+	border: "none",
+	padding: "8px 16px",
+	borderRadius: "6px",
+	cursor: "pointer"
+};
+
+const warnBtn = (disabled) => ({
+	background: disabled ? "#ccc" : "#fbbc04",
+	border: "none",
+	padding: "8px 16px",
+	borderRadius: "6px",
+	cursor: disabled ? "not-allowed" : "pointer"
+});
+
+const dangerBtn = (disabled) => ({
+	background: disabled ? "#ccc" : "#d93025",
+	color: "#fff",
+	border: "none",
+	padding: "8px 16px",
+	borderRadius: "6px",
+	cursor: disabled ? "not-allowed" : "pointer"
+});
+
+/* ================= COMPONENT ================= */
+
+export default function AdminCalendar() {
 	const [currentMonth, setCurrentMonth] = useState(new Date());
 	const [selectedDate, setSelectedDate] = useState(null);
 	const [reason, setReason] = useState("");
+	const [hovered, setHovered] = useState(null);
+	const [selectedRow, setSelectedRow] = useState(null);
+
 	const [noPassDays, setNoPassDays] = useState(() => {
 		const saved = localStorage.getItem("noPassDays");
 		return saved ? JSON.parse(saved) : [];
 	});
 
-	const saveNoPassDays = (newList) => {
-		setNoPassDays(newList);
-		localStorage.setItem("noPassDays", JSON.stringify(newList));
+	const save = (list) => {
+		setNoPassDays(list);
+		localStorage.setItem("noPassDays", JSON.stringify(list));
 	};
 
-	const prevMonth = () => setCurrentMonth(addMonths(currentMonth, -1));
-	const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+	/* ================= HELPERS ================= */
 
-	// Click a day in calendar
-	const handleDateClick = (date) => {
-		const year = date.getFullYear();
-		const month = date.getMonth() + 1;
-		const day = date.getDate();
-		setSelectedDate({ year, month, day }); // numbers only
-		setReason("");
-	};
+	const sameDate = (a, b) =>
+		a && b &&
+		a.year === b.year &&
+		a.month === b.month &&
+		a.day === b.day;
 
-	const addNoPassDay = () => {
+	const getReason = (d) =>
+		noPassDays.find(x => sameDate(x, d))?.reason;
+
+	const formatDate = (d) =>
+		`${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+
+	/* ================= CRUD ================= */
+
+	const addOrUpdate = () => {
 		if (!selectedDate || !reason.trim()) return;
 
-		const newList = [...noPassDays, { ...selectedDate, reason }];
-		saveNoPassDays(newList);
-		setSelectedDate(null);
+		const exists = noPassDays.find(d => sameDate(d, selectedDate));
+
+		const updated = exists
+			? noPassDays.map(d =>
+				sameDate(d, selectedDate) ? { ...d, reason } : d
+			)
+			: [...noPassDays, { ...selectedDate, reason }];
+
+		save(updated);
 		setReason("");
+		setSelectedDate(null);
 	};
 
-	const removeNoPassDay = (index) => {
-		const newList = [...noPassDays];
-		newList.splice(index, 1);
-		saveNoPassDays(newList);
+	const deleteReason = () => {
+		if (!selectedRow) return;
+		save(noPassDays.filter(d => d !== selectedRow));
+		setSelectedRow(null);
 	};
 
-	const formatDate = (entry) =>
-		`${entry.year}-${entry.month.toString().padStart(2, "0")}-${entry.day
-			.toString()
-			.padStart(2, "0")}`;
+	/* ================= RENDER ================= */
 
 	const renderWeekDays = () =>
-		["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, idx) => (
+		["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d, i) => (
 			<div
-				key={idx}
+				key={i}
 				style={{
 					flex: 1,
 					textAlign: "center",
-					fontWeight: "600",
 					padding: "10px 0",
-					color: idx === 0 || idx === 6 ? "#d32f2f" : "#333",
+					color: i === 0 ? "#d32f2f" : "#333"
 				}}
 			>
-				{day}
+				{d}
 			</div>
 		));
 
 	const renderCells = () => {
-		const monthStart = startOfMonth(currentMonth);
-		const monthEnd = endOfMonth(monthStart);
-		const startDate = startOfWeek(monthStart);
-		const endDate = endOfWeek(monthEnd);
+		const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 });
+		const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 });
 
-		const rows = [];
+		let rows = [];
 		let days = [];
-		let currentDay = startDate;
+		let d = new Date(start);
 
-		while (currentDay <= endDate) {
+		while (d <= end) {
 			for (let i = 0; i < 7; i++) {
-				const year = currentDay.getFullYear();
-				const month = currentDay.getMonth() + 1;
-				const day = currentDay.getDate();
+				const dateObj = {
+					year: d.getFullYear(),
+					month: d.getMonth() + 1,
+					day: d.getDate()
+				};
 
-				const isNoPass = noPassDays.some(
-					nd => nd.year === year && nd.month === month && nd.day === day
-				);
+				const isSunday = d.getDay() === 0;
+				const hasReason = !!getReason(dateObj);
+				const isCurrentMonth = isSameMonth(d, currentMonth);
 
-				const isCurrentMonth = isSameMonth(currentDay, currentMonth);
-				const isWeekendDay = isWeekend(currentDay);
+				const color =
+					hasReason
+						? "#d32f2f"
+						: isSunday
+							? "#d32f2f"
+							: isCurrentMonth ? "#000" : "#999";
 
 				days.push(
 					<div
-						key={`${year}-${month}-${day}`}
-						onClick={() => handleDateClick(currentDay)}
+						key={formatDate(dateObj)}
+						onClick={() => { setSelectedDate(dateObj); setReason(getReason(dateObj) || ""); }}
+						onMouseEnter={() => setHovered(dateObj)}
+						onMouseLeave={() => setHovered(null)}
 						style={{
 							flex: 1,
 							height: "70px",
@@ -107,108 +168,131 @@ export default function Calendar() {
 							display: "flex",
 							justifyContent: "center",
 							alignItems: "center",
-							backgroundColor: isNoPass
-								? "#f44336"
-								: isCurrentMonth
-								? "#fff"
-								: "#f5f5f5",
-							color: isNoPass
-								? "#fff"
-								: isCurrentMonth
-								? isWeekendDay
-									? "#d32f2f"
-									: "#000"
-								: "#999",
 							borderRadius: "10px",
+							background: "#fff",
+							boxShadow: "0 2px 5px rgba(0,0,0,.1)",
+							color,
 							cursor: "pointer",
-							boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
-							userSelect: "none",
-							fontWeight: isNoPass ? "600" : "400",
-						}}
-						onMouseEnter={(e) => {
-							if (!isNoPass) e.currentTarget.style.background = "#e0e0e0";
-						}}
-						onMouseLeave={(e) => {
-							if (!isNoPass)
-								e.currentTarget.style.background = isCurrentMonth ? "#fff" : "#f5f5f5";
+							position: "relative"
 						}}
 					>
-						{day}
+						{dateObj.day}
+
+						{hovered && sameDate(hovered, dateObj) && hasReason && (
+							<div style={{
+								position: "absolute",
+								bottom: "85px",
+								background: "#222",
+								color: "#fff",
+								padding: "14px",
+								borderRadius: "10px",
+								width: "220px",
+								textAlign: "center",
+								boxShadow: "0 6px 16px rgba(0,0,0,.4)"
+							}}>
+								{getReason(dateObj)}
+							</div>
+						)}
 					</div>
 				);
 
-				currentDay = addDays(currentDay, 1);
+				d = addDays(d, 1);
 			}
 
-			rows.push(
-				<div key={currentDay.toString()} style={{ display: "flex", marginBottom: "4px" }}>
-					{days}
-				</div>
-			);
+			rows.push(<div key={d} style={{ display: "flex" }}>{days}</div>);
 			days = [];
 		}
 
-		return <div>{rows}</div>;
+		return rows;
 	};
 
-	return (
-		<div style={{ maxWidth: "750px", margin: "0 auto", fontFamily: "Arial, sans-serif" }}>
-			<h2 style={{ textAlign: "center", marginBottom: "15px" }}>Admin Calendar</h2>
+	/* ================= JSX ================= */
 
-			<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-				<button onClick={prevMonth} style={{ padding: "6px 12px" }}>{"<"}</button>
+	return (
+		<div style={{ maxWidth: "900px", margin: "0 auto", fontFamily: "Arial" }}>
+			<h2 style={{ textAlign: "center" }}>Admin Calendar</h2>
+
+			{/* MONTH NAV */}
+			<div style={{ display: "flex", justifyContent: "space-between" }}>
+				<button onClick={() => setCurrentMonth(addMonths(currentMonth, -1))}>{"<"}</button>
 				<h3>{format(currentMonth, "MMMM yyyy")}</h3>
-				<button onClick={nextMonth} style={{ padding: "6px 12px" }}>{">"}</button>
+				<button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>{">"}</button>
 			</div>
 
-			<div style={{ display: "flex", marginBottom: "6px" }}>{renderWeekDays()}</div>
+			<div style={{ display: "flex" }}>{renderWeekDays()}</div>
 			{renderCells()}
 
+			{/* ADD / UPDATE */}
 			{selectedDate && (
-				<div style={{ marginTop: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
-					<h4>
-						Reason for no-pass on <strong>{formatDate(selectedDate)}</strong>:
-					</h4>
+				<div style={{ marginTop: "15px", display: "flex", gap: "8px" }}>
+					<b>{formatDate(selectedDate)}</b>
 					<input
-						type="text"
 						value={reason}
-						onChange={(e) => setReason(e.target.value)}
-						placeholder="Enter reason"
-						style={{ padding: "6px", flex: 1 }}
+						onChange={e => setReason(e.target.value)}
+						placeholder="Reason"
+						style={{ flex: 1, padding: "8px" }}
 					/>
-					<button onClick={addNoPassDay} style={{ padding: "6px 12px" }}>Add</button>
+					<button style={primaryBtn} onClick={addOrUpdate}>
+						Save
+					</button>
 				</div>
 			)}
 
-			<h3 style={{ marginTop: "25px" }}>No-Pass Days</h3>
-			{noPassDays.length === 0 ? (
-				<p>No entries yet.</p>
-			) : (
-				<div style={{ maxHeight: "250px", overflowY: "auto" }}>
-					<table style={{ width: "100%", borderCollapse: "collapse" }}>
-						<thead>
-							<tr>
-								<th style={{ border: "1px solid #ddd", padding: "8px" }}>Date</th>
-								<th style={{ border: "1px solid #ddd", padding: "8px" }}>Reason</th>
-								<th style={{ border: "1px solid #ddd", padding: "8px" }}>Action</th>
+			{/* ================= TABLE ================= */}
+			<h3 style={{ marginTop: "30px" }}>No-Pass Reasons</h3>
+
+			<div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+				<button
+					style={warnBtn(!selectedRow)}
+					disabled={!selectedRow}
+					onClick={() => {
+						setSelectedDate(selectedRow);
+						setReason(selectedRow.reason);
+					}}
+				>
+					Update
+				</button>
+
+				<button
+					style={dangerBtn(!selectedRow)}
+					disabled={!selectedRow}
+					onClick={deleteReason}
+				>
+					Delete
+				</button>
+			</div>
+
+			<table style={{ width: "100%", borderCollapse: "collapse" }}>
+				<thead>
+					<tr>
+						<th style={th}>Date</th>
+						<th style={th}>Reason</th>
+					</tr>
+				</thead>
+				<tbody>
+					{noPassDays.length === 0 ? (
+						<tr>
+							<td colSpan="2" style={{ padding: "15px", textAlign: "center" }}>
+								No records
+							</td>
+						</tr>
+					) : (
+						noPassDays.map((d, i) => (
+							<tr
+								key={i}
+								onClick={() => setSelectedRow(d)}
+								style={{
+									cursor: "pointer",
+									background: selectedRow === d ? "#e8f0fe" : "transparent"
+								}}
+							>
+								<td style={td}>{formatDate(d)}</td>
+								<td style={td}>{d.reason}</td>
 							</tr>
-						</thead>
-						<tbody>
-							{noPassDays
-								.map((d, idx) => (
-									<tr key={idx}>
-										<td style={{ border: "1px solid #ddd", padding: "8px" }}>{formatDate(d)}</td>
-										<td style={{ border: "1px solid #ddd", padding: "8px" }}>{d.reason}</td>
-										<td style={{ border: "1px solid #ddd", padding: "8px" }}>
-											<button onClick={() => removeNoPassDay(idx)}>Remove</button>
-										</td>
-									</tr>
-								))
-								.reverse()}
-						</tbody>
-					</table>
-				</div>
-			)}
+						))
+					)}
+				</tbody>
+			</table>
 		</div>
 	);
 }
