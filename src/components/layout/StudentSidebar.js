@@ -1,4 +1,4 @@
-export default function StudentSidebar({ open, onClose }) {
+export default function StudentSidebar({ open, onClose, onNavigate }) {
 	return (
 		<>
 			{/* OVERLAY */}
@@ -7,12 +7,9 @@ export default function StudentSidebar({ open, onClose }) {
 					onClick={onClose}
 					style={{
 						position: "fixed",
-						top: 0,
-						left: 0,
-						width: "100vw",
-						height: "100vh",
+						inset: 0,
 						background: "rgba(0,0,0,0.35)",
-						zIndex: 9
+						zIndex: 19
 					}}
 				/>
 			)}
@@ -28,12 +25,11 @@ export default function StudentSidebar({ open, onClose }) {
 					background: "#f8f9fa",
 					borderRight: "1px solid #ddd",
 					transition: "left 0.3s ease",
-					zIndex: 10,
+					zIndex: 20, // 🔥 TAKPAN HEADER
 					padding: "20px",
 					boxSizing: "border-box"
 				}}
 			>
-				{/* TOP / BACK */}
 				<div
 					onClick={onClose}
 					style={{
@@ -46,17 +42,18 @@ export default function StudentSidebar({ open, onClose }) {
 					← Back
 				</div>
 
-				<MenuItem label="Borrow Items" />
-				<MenuItem label="Borrow History" />
-				<MenuItem label="Rules & Guidelines" />
+				<MenuItem label="Home" onClick={() => onNavigate("home")} />
+				<MenuItem label="Borrow" onClick={() => onNavigate("borrow")} />
+				<MenuItem label="Calendar" onClick={() => onNavigate("calendar")} />
 			</div>
 		</>
 	);
 }
 
-function MenuItem({ label }) {
+function MenuItem({ label, onClick }) {
 	return (
 		<div
+			onClick={onClick}
 			style={{
 				padding: "12px 14px",
 				borderRadius: "8px",

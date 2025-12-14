@@ -1,14 +1,43 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import AdminPage from "./pages/AdminPage";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import LoginPage from "./pages//LoginPage";
 import StudentPage from "./pages/StudentPage";
+import AdminPage from "./pages/AdminPage";
+import { getUser } from "./components/services/authService";
+
+function ProtectedRoute({ children, role }) {
+	const user = getUser();
+
+	if (!user || user.role !== role) {
+		return <LoginPage />;
+	}
+
+	return children;
+}
 
 export default function App() {
 	return (
-		<Router>
+		<BrowserRouter>
 			<Routes>
-				<Route path="/" element={<StudentPage />} />
-				<Route path="/admin" element={<AdminPage />} />
+				<Route path="/" element={<LoginPage />} />
+
+				<Route
+					path="/student"
+					element={
+						<ProtectedRoute role="student">
+							<StudentPage />
+						</ProtectedRoute>
+					}
+				/>
+
+				<Route
+					path="/admin"
+					element={
+						<ProtectedRoute role="admin">
+							<AdminPage />
+						</ProtectedRoute>
+					}
+				/>
 			</Routes>
-		</Router>
+		</BrowserRouter>
 	);
 }

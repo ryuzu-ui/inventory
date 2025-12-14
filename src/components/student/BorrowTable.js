@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { PrintBorrowPDF } from "./PrintBorrowPDF";
+import { getUser } from "../services/authService";
+import {
+	loadScheduleInventory,
+	saveScheduleInventory
+} from "../services/scheduleInventory";
+
 
 const th = {
 	padding: "10px",
@@ -29,9 +35,13 @@ export default function BorrowTable() {
 
 	/* LOAD INVENTORY */
 	useEffect(() => {
-		const saved = localStorage.getItem("inventory");
-		if (saved) setInventory(JSON.parse(saved));
+		const user = getUser();
+		if (!user) return;
+
+		const schedInventory = loadScheduleInventory(user);
+		setInventory(schedInventory);
 	}, []);
+
 
 	/* ADD / REMOVE ITEM */
 	const toggleItem = (item) => {
@@ -68,6 +78,33 @@ export default function BorrowTable() {
 		item.tools.toLowerCase().includes(search.toLowerCase())
 	);
 
+	const confirmBorrow = () => {
+		if (items.length === 0) {
+			alert("No items selected");
+			return;
+		}
+
+		const user = getUser();
+		if (!user) return;
+
+		const updatedInventory = inventory.map(inv => {
+			const borrowed = items.find(i => i.id === inv.id);
+			if (!borrowed) return inv;
+
+			return {
+				...inv,
+				qty: inv.qty - borrowed.qty
+			};
+		});
+
+		saveScheduleInventory(user, updatedInventory);
+		setInventory(updatedInventory);
+		setItems([]);
+
+		alert("Borrow confirmed for your schedule!");
+	};
+
+
 	return (
 		<div>
 			{/* BORROWER INFO */}
@@ -78,18 +115,38 @@ export default function BorrowTable() {
 			</div>
 
 			{/* BUTTONS */}
-			<div style={{ display: "flex", justifyContent: "space-between", marginBottom: "15px" }}>
+			<div
+				style={{
+					display: "flex",
+					justifyContent: "space-between",
+					marginBottom: "15px",
+					gap: "10px"
+				}}
+			>
 				<button style={btnPrimary} onClick={() => setShowModal(true)}>
 					+ Add Item
 				</button>
 
-				<button
-					style={btnPrimary}
-					onClick={() => PrintBorrowPDF({ name, labNo, controlNo, items })}
-				>
-					Print Borrow Form
-				</button>
+				<div style={{ display: "flex", gap: "10px" }}>
+					<button
+						style={btnPrimary}
+						onClick={() => PrintBorrowPDF({ name, labNo, controlNo, items })}
+					>
+						Print Borrow Form
+					</button>
+
+					<button
+						style={{
+							...btnPrimary,
+							background: "#2e7d32"
+						}}
+						onClick={confirmBorrow}
+					>
+						Confirm Borrow
+					</button>
+				</div>
 			</div>
+
 
 			{/* BORROW TABLE */}
 			<table style={{ width: "100%", borderCollapse: "collapse" }}>
