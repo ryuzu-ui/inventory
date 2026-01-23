@@ -12,7 +12,7 @@ export default function Dashboard() {
 
 	return (
 		<div>
-			<h2>Reservations</h2>
+			<h2>Admin Dashboard</h2>
 
 			<table border="1" cellPadding="8" width="100%">
 				<thead>
@@ -28,17 +28,21 @@ export default function Dashboard() {
 				<tbody>
 					{reservations.length === 0 ? (
 						<tr>
-							<td colSpan="5" align="center">No reservations</td>
+							<td colSpan="5" align="center">
+								No reservations
+							</td>
 						</tr>
 					) : (
 						reservations.map(r => (
 							<tr key={r.id}>
 								<td>{r.name}</td>
+
 								<td>
 									{r.schedule
 										? `${r.schedule.day} ${r.schedule.time}`
 										: "No schedule"}
 								</td>
+
 								<td>
 									{r.items.map(i => (
 										<div key={i.id}>
@@ -46,24 +50,40 @@ export default function Dashboard() {
 										</div>
 									))}
 								</td>
-								<td>{r.status}</td>
+
+								{/* ✅ STATUS */}
+								<td>
+									{r.status === "reserved" && "Pending"}
+									{r.status === "approved" && "Approved"}
+									{r.status === "returned" && "Returned"}
+								</td>
+
+								{/* ✅ ACTION */}
 								<td>
 									{r.status === "reserved" && (
-										<button onClick={() => {
-											approveReservation(r);
-											refresh();
-										}}>
+										<button
+											onClick={() => {
+												approveReservation(r);
+												refresh();
+											}}
+										>
 											Approve
 										</button>
 									)}
 
 									{r.status === "approved" && (
-										<button onClick={() => {
-											releaseReservation(r);
-											refresh();
-										}}>
+										<button
+											onClick={() => {
+												releaseReservation(r);
+												refresh();
+											}}
+										>
 											Return
 										</button>
+									)}
+
+									{r.status === "returned" && (
+										<span>-</span>
 									)}
 								</td>
 							</tr>
