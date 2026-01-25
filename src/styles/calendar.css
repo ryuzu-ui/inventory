@@ -1,0 +1,96 @@
+/* === Calendar Container === */
+.calendarShell {
+  background: #101214;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+/* Make FullCalendar text readable on dark */
+.fc {
+  --fc-border-color: rgba(255, 255, 255, 0.10);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(255, 255, 255, 0.04);
+  --fc-today-bg-color: rgba(255, 255, 255, 0.06);
+  --fc-event-border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Toolbar */
+.fc .fc-toolbar {
+  margin: 6px 6px 14px 6px;
+}
+.fc .fc-toolbar-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.2px;
+}
+
+/* Buttons */
+.fc .fc-button {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fff !important;
+  padding: 8px 12px !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+.fc .fc-button:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+.fc .fc-button:disabled {
+  opacity: 0.45 !important;
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Header row (Sun/Mon/...) */
+.fc .fc-col-header-cell {
+  background: rgba(255, 255, 255, 0.04);
+}
+.fc .fc-col-header-cell-cushion {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 10px 0;
+}
+
+/* Day numbers */
+.fc .fc-daygrid-day-number {
+  color: rgba(255, 255, 255, 0.80);
+  text-decoration: none;
+  padding: 8px;
+  font-weight: 700;
+}
+
+/* Day cell hover */
+.fc .fc-daygrid-day:hover {
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+
+/* Events */
+.fc .fc-event {
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  padding: 3px 6px;
+}
+.fc .fc-event-title,
+.fc .fc-event-time {
+  font-weight: 800;
+}
+
+/* “More” link (when many events) */
+.fc .fc-daygrid-more-link {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 700;
+}
+
+/* Make grid slightly roomier */
+.fc .fc-daygrid-day-frame {
+  padding: 2px;
+}

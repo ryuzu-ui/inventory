@@ -37,24 +37,26 @@ app.get("/api/room-reservations/events", async (req, res) => {
       return res.status(400).json({ error: "start and end are required" });
     }
 
-    const sql = `
+    const roomIdNum = roomId ? Number(roomId) : null;
+
+    const result = await pool.query(
+      `
       SELECT
         rr.id,
         lr.room_name AS title,
-        (rr.reservation_date + rr.start_time) AS start,
-        (rr.reservation_date + rr.end_time) AS "end",
+        (rr.reservation_date::timestamp + rr.start_time) AS start,
+        (rr.reservation_date::timestamp + rr.end_time)   AS "end",
         rr.lab_room_id,
         rr.status
       FROM room_reservations rr
       JOIN lab_rooms lr ON rr.lab_room_id = lr.id
       WHERE rr.status = 'approved'
-        AND rr.reservation_date BETWEEN $1 AND $2
-        AND ($3::int IS NULL OR rr.lab_room_id = $3)
-      ORDER BY start;
-    `;
-
-    const params = [start, end, roomId ? Number(roomId) : null];
-    const result = await pool.query(sql, params);
+        AND rr.reservation_date BETWEEN $1::date AND $2::date
+        AND ($3::int IS NULL OR rr.lab_room_id = $3::int)
+      ORDER BY start
+      `,
+      [start, end, roomIdNum]
+    );
 
     res.json(result.rows);
   } catch (err) {
@@ -74,11 +76,13 @@ app.get("/api/lab-rooms/:roomId/reservations", async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT id, start_time, end_time, status, reserved_by
-       FROM room_reservations
-       WHERE lab_room_id = $1
-         AND reservation_date = $2
-       ORDER BY start_time`,
+      `
+      SELECT id, start_time, end_time, status, reserved_by
+      FROM room_reservations
+      WHERE lab_room_id = $1
+        AND reservation_date = $2::date
+      ORDER BY start_time
+      `,
       [roomId, date]
     );
 
@@ -89,27 +93,45 @@ app.get("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   }
 });
 
-// ✅ 4) Create reservation (pending)
+// ✅ 4) Create reservation (pending) — FIXED reserved_by
 app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   try {
     const roomId = Number(req.params.roomId);
     const { reserved_by, reservation_date, start_time, end_time } = req.body;
 
+    // Validate presence
     if (!reserved_by || !reservation_date || !start_time || !end_time) {
       return res.status(400).json({
         error: "reserved_by, reservation_date, start_time, end_time are required",
       });
     }
 
+    // ✅ FORCE reserved_by to integer
+    const reservedByNum = Number(reserved_by);
+
+    if (!Number.isInteger(reservedByNum) || reservedByNum <= 0) {
+      return res
+        .status(400)
+        .json({ error: "reserved_by must be a valid integer user id" });
+    }
+
+    if (start_time >= end_time) {
+      return res
+        .status(400)
+        .json({ error: "start_time must be before end_time" });
+    }
+
     // Conflict check (approved only)
     const conflict = await pool.query(
-      `SELECT 1
-       FROM room_reservations
-       WHERE lab_room_id = $1
-         AND reservation_date = $2
-         AND status = 'approved'
-         AND (start_time < $4 AND end_time > $3)
-       LIMIT 1`,
+      `
+      SELECT 1
+      FROM room_reservations
+      WHERE lab_room_id = $1
+        AND reservation_date = $2::date
+        AND status = 'approved'
+        AND (start_time < $4::time AND end_time > $3::time)
+      LIMIT 1
+      `,
       [roomId, reservation_date, start_time, end_time]
     );
 
@@ -117,12 +139,15 @@ app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
       return res.status(409).json({ error: "Time slot is already reserved" });
     }
 
+    // Insert pending reservation
     const inserted = await pool.query(
-      `INSERT INTO room_reservations
-       (lab_room_id, reserved_by, reservation_date, start_time, end_time, status)
-       VALUES ($1, $2, $3, $4, $5, 'pending')
-       RETURNING *`,
-      [roomId, reserved_by, reservation_date, start_time, end_time]
+      `
+      INSERT INTO room_reservations
+      (lab_room_id, reserved_by, reservation_date, start_time, end_time, status)
+      VALUES ($1, $2, $3::date, $4::time, $5::time, 'pending')
+      RETURNING *
+      `,
+      [roomId, reservedByNum, reservation_date, start_time, end_time]
     );
 
     res.status(201).json(inserted.rows[0]);
@@ -144,10 +169,12 @@ app.patch("/api/room-reservations/:id/status", async (req, res) => {
     }
 
     const updated = await pool.query(
-      `UPDATE room_reservations
-       SET status = $2
-       WHERE id = $1
-       RETURNING *`,
+      `
+      UPDATE room_reservations
+      SET status = $2
+      WHERE id = $1
+      RETURNING *
+      `,
       [id, status]
     );
 
@@ -163,4 +190,6 @@ app.patch("/api/room-reservations/:id/status", async (req, res) => {
 });
 
 const port = Number(process.env.PORT) || 5000;
-app.listen(port, () => console.log(`API running on http://localhost:${port}`));
+app.listen(port, () =>
+  console.log(`API running on http://localhost:${port}`)
+);
