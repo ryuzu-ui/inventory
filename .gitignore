@@ -23,4 +23,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+# backend envgit rm --cached backend/.env
+backend/.env
+backend/.env.*
