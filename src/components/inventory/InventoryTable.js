@@ -63,7 +63,9 @@ export default function InventoryTable({ items = [], setItems }) {
 	/* CREATE / UPDATE */
 	const saveItem = (data) => {
 		const updated = editingItem
-			? items.map(i => i.id === editingItem.id ? { ...i, ...data } : i)
+			? items.map(i =>
+				i.id === editingItem.id ? { ...i, ...data } : i
+			)
 			: [...items, { ...data, id: Date.now() }];
 
 		setItems(updated);

@@ -67,8 +67,8 @@ export default function BorrowTable() {
 		const user = getUser();
 		if (!user) return;
 
-		const schedInventory = loadScheduleInventory(user);
-		setInventory(schedInventory);
+		const inv = loadScheduleInventory(user);
+		setInventory(inv);
 	}, []);
 
 	/* ===== LOAD SAVED BORROW ITEMS ===== */
@@ -100,11 +100,12 @@ export default function BorrowTable() {
 					id: item.id,
 					tools: item.tools,
 					qty: 1,
-					maxQty: item.qty
+					maxQty: item.endInventory ?? item.qty
 				}
 			]);
 		}
 	};
+
 
 	/* ===== UPDATE QUANTITY ===== */
 	const updateQty = (id, qty) => {
@@ -122,32 +123,20 @@ export default function BorrowTable() {
 		const user = getUser();
 		if (!user) return;
 
-		for (let item of items) {
-			const inv = inventory.find(i => i.id === item.id);
-			if (!inv || item.qty > inv.qty) {
-				alert(`Not enough stock for ${item.tools}`);
-				return;
-			}
-		}
-
-		const reservation = {
-			id: Date.now(),
-			studentId: user.id,
-			name,
-			section: user.section,
-			schedule: user.schedule,
-			items,
-			status: "reserved",
-			createdAt: new Date().toISOString()
-		};
-
-		addReservation(reservation);
-
-		// deduct inventory immediately (reserve)
 		const updated = inventory.map(inv => {
 			const item = items.find(i => i.id === inv.id);
 			if (!item) return inv;
-			return { ...inv, qty: inv.qty - item.qty };
+
+			if (item.qty > inv.qty) {
+				alert(`Not enough stock for ${inv.tools}`);
+				throw new Error("Stock error");
+			}
+
+			return {
+				...inv,
+				qty: inv.qty - item.qty,
+				borrowed: (inv.borrowed || 0) + item.qty
+			};
 		});
 
 		saveScheduleInventory(user, updated);
@@ -156,6 +145,7 @@ export default function BorrowTable() {
 
 		alert("Reservation successful");
 	};
+
 
 
 
@@ -262,6 +252,7 @@ export default function BorrowTable() {
 			</table>
 
 			{/* ===== SELECT ITEM MODAL ===== */}
+			{/* ===== SELECT ITEM MODAL ===== */}
 			{showModal && (
 				<div style={backdrop}>
 					<div style={modal}>
@@ -289,26 +280,43 @@ export default function BorrowTable() {
 								<tbody>
 									{filteredInventory.length === 0 ? (
 										<tr>
-											<td colSpan="3" style={{ padding: "15px", textAlign: "center" }}>
+											<td
+												colSpan="3"
+												style={{ padding: "15px", textAlign: "center" }}
+											>
 												No items found
 											</td>
 										</tr>
 									) : (
-										filteredInventory.map(item => (
-											<tr key={item.id}>
-												<td style={td}>
-													<input
-														type="checkbox"
-														checked={!!items.find(i => i.id === item.id)}
-														onChange={() => toggleItem(item)}
-													/>
-												</td>
-												<td style={{ ...td, textAlign: "left" }}>
-													{item.tools}
-												</td>
-												<td style={td}>{item.qty}</td>
-											</tr>
-										))
+										filteredInventory.map(item => {
+											const available = item.endInventory ?? item.qty ?? 0;
+											const selected = items.find(i => i.id === item.id);
+
+											return (
+												<tr key={item.id}>
+													<td style={td}>
+														<input
+															type="checkbox"
+															checked={!!selected}
+															disabled={available <= 0}
+															onChange={() => toggleItem(item)}
+														/>
+													</td>
+
+													<td style={{ ...td, textAlign: "left" }}>
+														{item.tools}
+													</td>
+
+													<td style={td}>
+														{available <= 0 ? (
+															<span style={{ color: "red" }}>0</span>
+														) : (
+															available
+														)}
+													</td>
+												</tr>
+											);
+										})
 									)}
 								</tbody>
 							</table>
@@ -320,6 +328,7 @@ export default function BorrowTable() {
 					</div>
 				</div>
 			)}
+
 		</div>
 	);
 }
