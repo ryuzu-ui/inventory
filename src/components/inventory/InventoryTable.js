@@ -61,6 +61,7 @@ export default function InventoryTable({ items = [], setItems }) {
 	const [editingItem, setEditingItem] = useState(null);
 	const [selectedItem, setSelectedItem] = useState(null);
 	const [search, setSearch] = useState("");
+	const [selectedIds, setSelectedIds] = useState([]);
 
 	/* CREATE / UPDATE */
 	const saveItem = (data) => {
@@ -79,14 +80,26 @@ export default function InventoryTable({ items = [], setItems }) {
 
 	/* DELETE */
 	const deleteItem = () => {
-		if (!selectedItem) return;
-		if (!window.confirm("Delete selected item?")) return;
+		if (selectedIds.length === 0) return;
+		if (!window.confirm(`Delete ${selectedIds.length} item(s)?`)) return;
 
-		const updated = items.filter(i => i.id !== selectedItem.id);
+		const updated = items.filter(i => !selectedIds.includes(i.id));
 		setItems(updated);
 		localStorage.setItem("inventory", JSON.stringify(updated));
-		setSelectedItem(null);
+		setSelectedIds([]);
 	};
+
+
+	const toggleSelect = (id) => {
+		setSelectedIds(prev =>
+			prev.includes(id)
+				? prev.filter(x => x !== id)
+				: [...prev, id]
+		);
+	};
+
+const isSelected = (id) => selectedIds.includes(id);
+
 
 	/* SEARCH FILTER */
 	const filteredItems = items.filter(i =>
@@ -110,31 +123,53 @@ export default function InventoryTable({ items = [], setItems }) {
 			// Convert to JSON
 			const rows = XLSX.utils.sheet_to_json(sheet);
 
-			const importedItems = rows.map(row => ({
-				id: Date.now() + Math.random(),
+			const existingToolNames = items.map(i =>
+				i.tools?.toLowerCase().trim()
+			);
 
-				tools: row.tools || "",
-				particular: row.particular || "",
-				purchaseDate: row.purchaseDate || "",
-				qty: Number(row.qty) || 0,
-				borrowed: Number(row.borrowed) || 0,
-				additionalQty: Number(row.additionalQty) || 0,
-				lifeSpan: row.lifeSpan || "",
-				replaced: Number(row.replaced) || 0,
-				totalInventory: Number(row.totalInventory) || 0,
-				missing: Number(row.missing) || 0,
-				breakage: Number(row.breakage) || 0,
-				defective: Number(row.defective) || 0,
-				totalLoss: Number(row.totalLoss) || 0,
-				endInventory: Number(row.endInventory) || 0,
-				ched: Number(row.ched) || 0,
-				tesda: Number(row.tesda) || 0,
-				deped: Number(row.deped) || 0
-			}));
+
+			const importedItems = [];
+
+			rows.forEach(row => {
+				const toolName = row.tools?.toLowerCase().trim();
+				if (!toolName) return;
+
+				if (existingToolNames.includes(toolName)) {
+					return; // skip duplicate
+				}
+
+				importedItems.push({
+					id: Date.now() + Math.random(),
+					tools: row.tools,
+					particular: row.particular || "",
+					purchaseDate: row.purchaseDate || "",
+					qty: Number(row.qty) || 0,
+					borrowed: Number(row.borrowed) || 0,
+					additionalQty: Number(row.additionalQty) || 0,
+					lifeSpan: row.lifeSpan || "",
+					replaced: Number(row.replaced) || 0,
+					totalInventory: Number(row.totalInventory) || 0,
+					missing: Number(row.missing) || 0,
+					breakage: Number(row.breakage) || 0,
+					defective: Number(row.defective) || 0,
+					totalLoss: Number(row.totalLoss) || 0,
+					endInventory: Number(row.endInventory) || 0,
+					ched: Number(row.ched) || 0,
+					tesda: Number(row.tesda) || 0,
+					deped: Number(row.deped) || 0
+				});
+			});
+
+
+			if (importedItems.length === 0) {
+				alert("No new items imported (duplicates detected).");
+				return;
+			}
 
 			const updated = [...items, ...importedItems];
 			setItems(updated);
 			localStorage.setItem("inventory", JSON.stringify(updated));
+
 		};
 
 		reader.readAsArrayBuffer(file);
@@ -174,12 +209,17 @@ export default function InventoryTable({ items = [], setItems }) {
 					</button>
 
 					<button
-						disabled={!selectedItem}
-						onClick={() => { setEditingItem(selectedItem); setShowModal(true); }}
-						style={warnBtn(!selectedItem)}
+						disabled={selectedIds.length !== 1}
+						onClick={() => {
+							const item = items.find(i => i.id === selectedIds[0]);
+							setEditingItem(item);
+							setShowModal(true);
+						}}
+						style={warnBtn(selectedIds.length !== 1)}
 					>
 						Update
 					</button>
+
 
 					<button
 						disabled={!selectedItem}
@@ -195,6 +235,7 @@ export default function InventoryTable({ items = [], setItems }) {
 			<table style={{ width: "100%", borderCollapse: "collapse" }}>
 				<thead>
 					<tr>
+						<th style={th}>Select</th>
 						{[
 							"No","Tools","Particular","Date","Qty","Borrowed","Add Qty","Life Span",
 							"Replaced","Total","Missing","Breakage","Defective",
@@ -202,12 +243,14 @@ export default function InventoryTable({ items = [], setItems }) {
 						].map(h => <th key={h} style={th}>{h}</th>)}
 					</tr>
 				</thead>
+
 				<tbody>
 					{filteredItems.length === 0 ? (
 						<tr>
 							<td colSpan="17" style={{ padding: "15px", textAlign: "center" }}>
 								No items found
 							</td>
+							
 						</tr>
 					) : (
 						filteredItems.map((item, i) => (
@@ -220,6 +263,14 @@ export default function InventoryTable({ items = [], setItems }) {
 										selectedItem?.id === item.id ? "#e8f0fe" : "transparent"
 								}}
 							>
+								<td style={td}>
+									<input
+										type="checkbox"
+										checked={selectedIds.includes(item.id)}
+										onChange={() => toggleSelect(item.id)}
+									/>
+								</td>
+
 								<td style={td}>{i + 1}</td>
 								<td style={td}>{item.tools}</td>
 								<td style={td}>{item.particular}</td>
@@ -238,6 +289,7 @@ export default function InventoryTable({ items = [], setItems }) {
 								<td style={td}>{item.ched}</td>
 								<td style={td}>{item.tesda}</td>
 								<td style={td}>{item.deped}</td>
+								
 							</tr>
 						))
 					)}
