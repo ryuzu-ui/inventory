@@ -1,5 +1,7 @@
 import { useState } from "react";
 import AddItemModal from "./AddItemModal";
+import * as XLSX from "xlsx";
+
 
 /* TABLE STYLES */
 const th = {
@@ -90,6 +92,54 @@ export default function InventoryTable({ items = [], setItems }) {
 	const filteredItems = items.filter(i =>
 		i.tools?.toLowerCase().includes(search.toLowerCase())
 	);
+
+	const handleImportXLSX = (e) => {
+		const file = e.target.files[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+
+		reader.onload = (evt) => {
+			const data = new Uint8Array(evt.target.result);
+			const workbook = XLSX.read(data, { type: "array" });
+
+			// Kunin first sheet
+			const sheetName = workbook.SheetNames[0];
+			const sheet = workbook.Sheets[sheetName];
+
+			// Convert to JSON
+			const rows = XLSX.utils.sheet_to_json(sheet);
+
+			const importedItems = rows.map(row => ({
+				id: Date.now() + Math.random(),
+
+				tools: row.tools || "",
+				particular: row.particular || "",
+				purchaseDate: row.purchaseDate || "",
+				qty: Number(row.qty) || 0,
+				borrowed: Number(row.borrowed) || 0,
+				additionalQty: Number(row.additionalQty) || 0,
+				lifeSpan: row.lifeSpan || "",
+				replaced: Number(row.replaced) || 0,
+				totalInventory: Number(row.totalInventory) || 0,
+				missing: Number(row.missing) || 0,
+				breakage: Number(row.breakage) || 0,
+				defective: Number(row.defective) || 0,
+				totalLoss: Number(row.totalLoss) || 0,
+				endInventory: Number(row.endInventory) || 0,
+				ched: Number(row.ched) || 0,
+				tesda: Number(row.tesda) || 0,
+				deped: Number(row.deped) || 0
+			}));
+
+			const updated = [...items, ...importedItems];
+			setItems(updated);
+			localStorage.setItem("inventory", JSON.stringify(updated));
+		};
+
+		reader.readAsArrayBuffer(file);
+	};
+
 
 	return (
 		<div style={{ width: "100%" }}>
@@ -203,7 +253,16 @@ export default function InventoryTable({ items = [], setItems }) {
 			}}>
 				<button style={btn}>PDF</button>
 				<button style={btn}>CSV</button>
-				<button style={btn}>Import CSV</button>
+				<label style={btn}>
+					Import Excel
+					<input
+						type="file"
+						accept=".xlsx"
+						onChange={handleImportXLSX}
+						style={{ display: "none" }}
+					/>
+				</label>
+
 			</div>
 
 			{/* 🔹 MODAL */}
