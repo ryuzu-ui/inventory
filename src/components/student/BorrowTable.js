@@ -16,14 +16,17 @@ const th = {
 	fontWeight: "600",
 	fontSize: "12px",
 	textAlign: "center",
-	background: "#f5f7fa"
+	background: "#f5f7fa",
+	color: "black"        
 };
 
 const td = {
 	padding: "8px",
 	border: "1px solid #e0e0e0",
 	fontSize: "12px",
-	textAlign: "center"
+	textAlign: "center",
+	color: "black",        
+	background: "#fff"
 };
 
 const btnPrimary = {
@@ -44,6 +47,7 @@ const backdrop = {
 
 const modal = {
 	background: "#fff",
+	color: "black",        
 	width: "520px",
 	margin: "8% auto",
 	padding: "20px",
@@ -262,7 +266,7 @@ export default function BorrowTable() {
 							placeholder="Search tools..."
 							value={search}
 							onChange={e => setSearch(e.target.value)}
-							style={{ width: "100%", padding: "6px", marginBottom: "10px" }}
+							style={{ width: "100%", padding: "6px", marginBottom: "10px", color: "black", background: "#fff" }}
 						/>
 
 						<div style={{ maxHeight: "260px", overflowY: "auto" }}>
@@ -323,7 +327,7 @@ export default function BorrowTable() {
 						</div>
 
 						<div style={{ textAlign: "right", marginTop: "15px" }}>
-							<button onClick={() => setShowModal(false)}>Done</button>
+							<button onClick={() => setShowModal(false)}style={{ color: "black" }}>Done</button>
 						</div>
 					</div>
 				</div>
