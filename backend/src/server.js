@@ -3,6 +3,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const bcrypt = require("bcryptjs"); // ✅ ADD
 const pool = require("./db");
 
 const app = express();
@@ -27,6 +28,111 @@ async function checkDb() {
 }
 checkDb();
 
+// --------------------
+// ✅ AUTH ROUTES (NEW)
+// --------------------
+
+// Register new user (default = student)
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { full_name, email, password } = req.body;
+
+    if (!full_name || !email || !password) {
+      return res.status(400).json({
+        error: "full_name, email, password are required",
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    // Check if email already exists
+    const exists = await pool.query(
+      `SELECT 1 FROM public.users WHERE email = $1 LIMIT 1`,
+      [normalizedEmail]
+    );
+    if (exists.rows.length > 0) {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+
+    // Find student role_id automatically
+    const roleResult = await pool.query(
+      `SELECT id FROM public.roles WHERE LOWER(name) = 'student' LIMIT 1`
+    );
+    const studentRoleId = roleResult.rows[0]?.id;
+
+    if (!studentRoleId) {
+      return res.status(500).json({
+        error: "Student role not found in roles table. Seed roles first.",
+      });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const inserted = await pool.query(
+      `
+      INSERT INTO public.users (full_name, email, password_hash, role_id)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, full_name, email, role_id
+      `,
+      [full_name, normalizedEmail, password_hash, studentRoleId]
+    );
+
+    res.status(201).json(inserted.rows[0]);
+  } catch (err) {
+    console.error("Register error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to register" });
+  }
+});
+
+// Login user
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password are required" });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+
+    const result = await pool.query(
+      `
+      SELECT u.id, u.full_name, u.email, u.password_hash, r.name AS role
+      FROM public.users u
+      LEFT JOIN public.roles r ON u.role_id = r.id
+      WHERE u.email = $1
+      LIMIT 1
+      `,
+      [normalizedEmail]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const user = result.rows[0];
+    const ok = await bcrypt.compare(password, user.password_hash);
+
+    if (!ok) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    res.json({
+      id: user.id,
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role || "student",
+    });
+  } catch (err) {
+    console.error("Login error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to login" });
+  }
+});
+
+// --------------------
+// EXISTING ROUTES
+// --------------------
+
 // ✅ Health check
 app.get("/api/health", async (req, res) => {
   res.json({ ok: true, message: "Backend is running" });
@@ -45,7 +151,6 @@ app.get("/api/lab-rooms", async (req, res) => {
     console.error("DB error in GET /api/lab-rooms:", err.message, err.code);
     res.status(500).json({
       error: "Failed to fetch lab rooms",
-      // You can comment this out later if you want zero debug info:
       details: process.env.NODE_ENV !== "production" ? err.message : undefined,
     });
   }
@@ -83,7 +188,11 @@ app.get("/api/room-reservations/events", async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    console.error("DB error in GET /api/room-reservations/events:", err.message, err.code);
+    console.error(
+      "DB error in GET /api/room-reservations/events:",
+      err.message,
+      err.code
+    );
     res.status(500).json({ error: "Failed to fetch events" });
   }
 });
@@ -111,7 +220,11 @@ app.get("/api/lab-rooms/:roomId/reservations", async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    console.error("DB error in GET /api/lab-rooms/:roomId/reservations:", err.message, err.code);
+    console.error(
+      "DB error in GET /api/lab-rooms/:roomId/reservations:",
+      err.message,
+      err.code
+    );
     res.status(500).json({ error: "Failed to fetch reservations for date" });
   }
 });
@@ -131,11 +244,15 @@ app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
     const reservedByNum = Number(reserved_by);
 
     if (!Number.isInteger(reservedByNum) || reservedByNum <= 0) {
-      return res.status(400).json({ error: "reserved_by must be a valid integer user id" });
+      return res
+        .status(400)
+        .json({ error: "reserved_by must be a valid integer user id" });
     }
 
     if (start_time >= end_time) {
-      return res.status(400).json({ error: "start_time must be before end_time" });
+      return res
+        .status(400)
+        .json({ error: "start_time must be before end_time" });
     }
 
     // Conflict check (approved only)
@@ -168,7 +285,11 @@ app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
 
     res.status(201).json(inserted.rows[0]);
   } catch (err) {
-    console.error("DB error in POST /api/lab-rooms/:roomId/reservations:", err.message, err.code);
+    console.error(
+      "DB error in POST /api/lab-rooms/:roomId/reservations:",
+      err.message,
+      err.code
+    );
     res.status(500).json({ error: "Failed to create reservation" });
   }
 });
@@ -200,7 +321,11 @@ app.patch("/api/room-reservations/:id/status", async (req, res) => {
 
     res.json(updated.rows[0]);
   } catch (err) {
-    console.error("DB error in PATCH /api/room-reservations/:id/status:", err.message, err.code);
+    console.error(
+      "DB error in PATCH /api/room-reservations/:id/status:",
+      err.message,
+      err.code
+    );
     res.status(500).json({ error: "Failed to update status" });
   }
 });
