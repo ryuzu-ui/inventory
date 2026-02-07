@@ -45,7 +45,6 @@ app.post("/api/auth/register", async (req, res) => {
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
-    // Check if email already exists
     const exists = await pool.query(
       `SELECT 1 FROM public.users WHERE email = $1 LIMIT 1`,
       [normalizedEmail]
@@ -54,7 +53,10 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(409).json({ error: "Email already exists" });
     }
 
-    // Find student role_id automatically
+    // Check what roles exist (debug)
+    const roles = await pool.query(`SELECT id, name FROM public.roles ORDER BY id`);
+
+    // Find student role
     const roleResult = await pool.query(
       `SELECT id FROM public.roles WHERE LOWER(name) = 'student' LIMIT 1`
     );
@@ -62,7 +64,10 @@ app.post("/api/auth/register", async (req, res) => {
 
     if (!studentRoleId) {
       return res.status(500).json({
-        error: "Student role not found in roles table. Seed roles first.",
+        error: "Student role not found in roles table.",
+        rolesFound: roles.rows,
+        hint:
+          "Run: INSERT INTO public.roles (name) VALUES ('admin'),('student') ON CONFLICT (name) DO NOTHING;",
       });
     }
 
@@ -79,10 +84,15 @@ app.post("/api/auth/register", async (req, res) => {
 
     res.status(201).json(inserted.rows[0]);
   } catch (err) {
-    console.error("Register error:", err.message, err.code);
-    res.status(500).json({ error: "Failed to register" });
+    // Even if logs don't show, we return details to the client
+    return res.status(500).json({
+      error: "Failed to register",
+      code: err.code,
+      details: err.message,
+    });
   }
 });
+
 
 // Login user
 app.post("/api/auth/login", async (req, res) => {
