@@ -6,7 +6,12 @@ import { useEffect, useMemo, useState } from "react";
 import { getUser } from "../components/services/authService";
 import "../styles/calendar.css";
 
-const API_BASE = "http://localhost:5000";
+import {
+  getLabRooms,
+  getEvents,
+  getRoomReservationsByDate,
+  createReservation,
+} from "../helper/api";
 
 // format Date -> YYYY-MM-DD (local)
 function toYMD(d) {
@@ -19,7 +24,7 @@ function toYMD(d) {
 export default function RoomCalendarPage() {
   const user = getUser();
 
-  // rooms (ALWAYS array)
+  // rooms
   const [rooms, setRooms] = useState([]);
   const [selectedRoomId, setSelectedRoomId] = useState(null);
 
@@ -39,59 +44,46 @@ export default function RoomCalendarPage() {
   const [message, setMessage] = useState("");
 
   // =========================
-  // LOAD ROOMS (SAFE)
+  // LOAD ROOMS
   // =========================
   useEffect(() => {
-    fetch(`${API_BASE}/api/lab-rooms`)
-      .then(async (res) => {
-        const data = await res.json();
+    (async () => {
+      try {
+        setMessage("");
+        const data = await getLabRooms();
+        setRooms(Array.isArray(data) ? data : []);
 
-        if (!res.ok || !Array.isArray(data)) {
-          console.error("Invalid rooms response:", data);
-          setRooms([]);
-          setMessage(data?.error || "Failed to load rooms.");
-          return;
-        }
-
-        setRooms(data);
-
-        if (data.length && selectedRoomId === null) {
+        if (Array.isArray(data) && data.length && selectedRoomId === null) {
           setSelectedRoomId(data[0].id);
         }
-      })
-      .catch((e) => {
-        console.error("Rooms fetch error:", e);
+      } catch (e) {
+        console.error("getLabRooms error:", e);
         setRooms([]);
-        setMessage("Failed to load rooms.");
-      });
+        setMessage(e.message || "Failed to load rooms.");
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // =========================
-  // LOAD EVENTS (DYNAMIC)
+  // LOAD EVENTS
   // =========================
   useEffect(() => {
     if (!range.start || !range.end) return;
 
-    const params = new URLSearchParams();
-    params.set("start", range.start);
-    params.set("end", range.end);
-    if (selectedRoomId) params.set("roomId", String(selectedRoomId));
-
-    fetch(`${API_BASE}/api/room-reservations/events?${params.toString()}`)
-      .then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) {
-          console.error("Events API error:", data);
-          setEvents([]);
-          return;
-        }
+    (async () => {
+      try {
+        const data = await getEvents({
+          start: range.start,
+          end: range.end,
+          roomId: selectedRoomId,
+        });
         setEvents(Array.isArray(data) ? data : []);
-      })
-      .catch((e) => {
-        console.error("Events fetch error:", e);
+      } catch (e) {
+        console.error("getEvents error:", e);
         setEvents([]);
-      });
+      }
+    })();
   }, [range, selectedRoomId]);
 
   // =========================
@@ -103,21 +95,15 @@ export default function RoomCalendarPage() {
     setMessage("");
 
     try {
-      const res = await fetch(
-        `${API_BASE}/api/lab-rooms/${roomId}/reservations?date=${dateStr}`
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        console.error("Day reservations API error:", data);
-        setDayReservations([]);
-        setMessage(data?.error || "Failed to load reservations.");
-        return;
-      }
+      const data = await getRoomReservationsByDate({
+        roomId,
+        date: dateStr,
+      });
       setDayReservations(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.error("Day reservations fetch error:", e);
+      console.error("getRoomReservationsByDate error:", e);
       setDayReservations([]);
-      setMessage("Failed to load reservations.");
+      setMessage(e.message || "Failed to load reservations.");
     } finally {
       setLoadingDay(false);
     }
@@ -142,29 +128,20 @@ export default function RoomCalendarPage() {
     if (!startTime || !endTime) return setMessage("Start and end time are required.");
     if (startTime >= endTime) return setMessage("Start time must be before end time.");
 
-    // Use actual logged-in user id if available; fallback to 1 for dummy user
-    const reservedBy = user?.id ?? user?.user_id ?? user?.userId ?? 1;
+    // ✅ Require login + require numeric DB id
+    const reservedBy = Number(user?.id);
+    if (!Number.isInteger(reservedBy) || reservedBy <= 0) {
+      return setMessage("You must be logged in to reserve a room.");
+    }
 
     try {
-      const res = await fetch(
-        `${API_BASE}/api/lab-rooms/${selectedRoomId}/reservations`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            reserved_by: reservedBy,
-            reservation_date: selectedDate,
-            start_time: startTime,
-            end_time: endTime,
-          }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        return setMessage(data?.error || "Reservation failed.");
-      }
+      await createReservation({
+        roomId: selectedRoomId,
+        reserved_by: reservedBy,
+        reservation_date: selectedDate,
+        start_time: startTime,
+        end_time: endTime,
+      });
 
       setMessage("✅ Reservation submitted (pending approval).");
       await loadDayReservations(selectedRoomId, selectedDate);
@@ -172,21 +149,17 @@ export default function RoomCalendarPage() {
       // Refresh events (approved only)
       setRange((r) => ({ ...r }));
     } catch (e) {
-      console.error("Reservation POST error:", e);
-      setMessage("Reservation failed.");
+      console.error("createReservation error:", e);
+      setMessage(e.message || "Reservation failed.");
     }
   };
 
   // Safe room name lookup
   const selectedRoomName = useMemo(() => {
-    if (!Array.isArray(rooms)) return "";
     const r = rooms.find((x) => x.id === selectedRoomId);
     return r?.room_name || "";
   }, [rooms, selectedRoomId]);
 
-  // =========================
-  // RENDER
-  // =========================
   return (
     <div style={{ padding: 20 }}>
       {/* Header row */}

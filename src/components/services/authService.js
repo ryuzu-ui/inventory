@@ -1,63 +1,28 @@
-const USERS = [
-	{
-		id: "admin-001",
-		username: "admin",
-		password: "admin123",
-		role: "admin"
-	},
+import { apiLogin, apiRegister } from "../../helper/api";
 
-	{
-		id: "stu-001",
-		username: "studentA",
-		password: "1234",
-		role: "student",
-		section: "BSHM-2A",
-		schedule: {
-			day: "Saturday",
-			time: "08:00-10:00"
-		}
-	},
+const STORAGE_KEY = "user";
 
-	{
-		id: "stu-002",
-		username: "studentB",
-		password: "1234",
-		role: "student",
-		section: "BSHM-2A",
-		schedule: {
-			day: "Saturday",
-			time: "11:00-13:00"
-		}
-	},
+// Login using DB
+export async function login(email, password) {
+  const user = await apiLogin({ email, password });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  return user;
+}
 
-	{
-		id: "stu-003",
-		username: "studentC",
-		password: "1234",
-		role: "student",
-		section: "BSHM-2A",
-		schedule: {
-			day: "Saturday",
-			time: "08:00-10:00"
-		}
-	}
-];
-
-export function login(username, password) {
-	const user = USERS.find(
-		u => u.username === username && u.password === password
-	);
-
-	if (!user) return null;
-
-	localStorage.setItem("user", JSON.stringify(user));
-	return user;
+// Register then auto-login (optional)
+export async function register(full_name, email, password) {
+  await apiRegister({ full_name, email, password });
+  // Auto-login after register for convenience
+  const user = await apiLogin({ email, password });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  return user;
 }
 
 export function getUser() {
-	return JSON.parse(localStorage.getItem("user"));
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw ? JSON.parse(raw) : null;
 }
 
 export function logout() {
-	localStorage.removeItem("user");
+  localStorage.removeItem(STORAGE_KEY);
 }
