@@ -1,3 +1,4 @@
+// server.js
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -7,6 +8,24 @@ const pool = require("./db");
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ✅ (NEW) Startup DB check: proves which DB you are connected to
+async function checkDb() {
+  try {
+    const r = await pool.query(`
+      SELECT
+        current_database() AS db,
+        current_user AS user,
+        inet_server_addr()::text AS server_ip,
+        inet_server_port() AS server_port,
+        current_schema() AS schema
+    `);
+    console.log("✅ Connected to Postgres:", r.rows[0]);
+  } catch (err) {
+    console.error("❌ DB connection check failed:", err);
+  }
+}
+checkDb();
 
 // ✅ Health check
 app.get("/api/health", async (req, res) => {
@@ -18,13 +37,17 @@ app.get("/api/lab-rooms", async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, room_code, room_name, capacity
-       FROM lab_rooms
+       FROM public.lab_rooms
        ORDER BY id`
     );
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch lab rooms" });
+    console.error("DB error in GET /api/lab-rooms:", err.message, err.code);
+    res.status(500).json({
+      error: "Failed to fetch lab rooms",
+      // You can comment this out later if you want zero debug info:
+      details: process.env.NODE_ENV !== "production" ? err.message : undefined,
+    });
   }
 });
 
@@ -48,8 +71,8 @@ app.get("/api/room-reservations/events", async (req, res) => {
         (rr.reservation_date::timestamp + rr.end_time)   AS "end",
         rr.lab_room_id,
         rr.status
-      FROM room_reservations rr
-      JOIN lab_rooms lr ON rr.lab_room_id = lr.id
+      FROM public.room_reservations rr
+      JOIN public.lab_rooms lr ON rr.lab_room_id = lr.id
       WHERE rr.status = 'approved'
         AND rr.reservation_date BETWEEN $1::date AND $2::date
         AND ($3::int IS NULL OR rr.lab_room_id = $3::int)
@@ -60,7 +83,7 @@ app.get("/api/room-reservations/events", async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("DB error in GET /api/room-reservations/events:", err.message, err.code);
     res.status(500).json({ error: "Failed to fetch events" });
   }
 });
@@ -78,7 +101,7 @@ app.get("/api/lab-rooms/:roomId/reservations", async (req, res) => {
     const result = await pool.query(
       `
       SELECT id, start_time, end_time, status, reserved_by
-      FROM room_reservations
+      FROM public.room_reservations
       WHERE lab_room_id = $1
         AND reservation_date = $2::date
       ORDER BY start_time
@@ -88,44 +111,38 @@ app.get("/api/lab-rooms/:roomId/reservations", async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error("DB error in GET /api/lab-rooms/:roomId/reservations:", err.message, err.code);
     res.status(500).json({ error: "Failed to fetch reservations for date" });
   }
 });
 
-// ✅ 4) Create reservation (pending) — FIXED reserved_by
+// ✅ 4) Create reservation (pending)
 app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   try {
     const roomId = Number(req.params.roomId);
     const { reserved_by, reservation_date, start_time, end_time } = req.body;
 
-    // Validate presence
     if (!reserved_by || !reservation_date || !start_time || !end_time) {
       return res.status(400).json({
         error: "reserved_by, reservation_date, start_time, end_time are required",
       });
     }
 
-    // ✅ FORCE reserved_by to integer
     const reservedByNum = Number(reserved_by);
 
     if (!Number.isInteger(reservedByNum) || reservedByNum <= 0) {
-      return res
-        .status(400)
-        .json({ error: "reserved_by must be a valid integer user id" });
+      return res.status(400).json({ error: "reserved_by must be a valid integer user id" });
     }
 
     if (start_time >= end_time) {
-      return res
-        .status(400)
-        .json({ error: "start_time must be before end_time" });
+      return res.status(400).json({ error: "start_time must be before end_time" });
     }
 
     // Conflict check (approved only)
     const conflict = await pool.query(
       `
       SELECT 1
-      FROM room_reservations
+      FROM public.room_reservations
       WHERE lab_room_id = $1
         AND reservation_date = $2::date
         AND status = 'approved'
@@ -139,10 +156,9 @@ app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
       return res.status(409).json({ error: "Time slot is already reserved" });
     }
 
-    // Insert pending reservation
     const inserted = await pool.query(
       `
-      INSERT INTO room_reservations
+      INSERT INTO public.room_reservations
       (lab_room_id, reserved_by, reservation_date, start_time, end_time, status)
       VALUES ($1, $2, $3::date, $4::time, $5::time, 'pending')
       RETURNING *
@@ -152,7 +168,7 @@ app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
 
     res.status(201).json(inserted.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("DB error in POST /api/lab-rooms/:roomId/reservations:", err.message, err.code);
     res.status(500).json({ error: "Failed to create reservation" });
   }
 });
@@ -170,7 +186,7 @@ app.patch("/api/room-reservations/:id/status", async (req, res) => {
 
     const updated = await pool.query(
       `
-      UPDATE room_reservations
+      UPDATE public.room_reservations
       SET status = $2
       WHERE id = $1
       RETURNING *
@@ -184,12 +200,10 @@ app.patch("/api/room-reservations/:id/status", async (req, res) => {
 
     res.json(updated.rows[0]);
   } catch (err) {
-    console.error(err);
+    console.error("DB error in PATCH /api/room-reservations/:id/status:", err.message, err.code);
     res.status(500).json({ error: "Failed to update status" });
   }
 });
 
 const port = Number(process.env.PORT) || 5000;
-app.listen(port, () =>
-  console.log(`API running on http://localhost:${port}`)
-);
+app.listen(port, () => console.log(`API running on http://localhost:${port}`));
