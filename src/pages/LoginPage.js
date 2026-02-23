@@ -4,10 +4,16 @@ import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState(""); // used in signup
+  const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // ✅ NEW: role selector for signup
+  const [signUpRole, setSignUpRole] = useState("student");
+
+  // ✅ NEW: admin passcode (only used if role=admin)
+  const [adminPasscode, setAdminPasscode] = useState("");
 
   const navigate = useNavigate();
 
@@ -15,8 +21,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const user = await login(email, password);
+      const role = String(user.role || "").toLowerCase();
 
-      if (user.role === "admin") navigate("/admin");
+      if (role === "admin") navigate("/admin");
       else navigate("/student");
     } catch (e) {
       alert(e.message || "Invalid login");
@@ -33,9 +40,20 @@ export default function LoginPage() {
         return;
       }
 
-      const user = await register(fullName, email, password);
+      // ✅ If trying to sign up as admin, require passcode
+      if (signUpRole === "admin" && !adminPasscode.trim()) {
+        alert("Admin passcode is required for admin signup.");
+        return;
+      }
 
-      if (user.role === "admin") navigate("/admin");
+      // ✅ Send role + admin secret only when needed
+      const user = await register(fullName, email, password, {
+        role: signUpRole,
+        admin_secret: signUpRole === "admin" ? adminPasscode : undefined,
+      });
+
+      const role = String(user.role || "").toLowerCase();
+      if (role === "admin") navigate("/admin");
       else navigate("/student");
     } catch (e) {
       alert(e.message || "Sign up failed");
@@ -71,12 +89,35 @@ export default function LoginPage() {
         <h2 style={{ textAlign: "center" }}>{isSignUp ? "Sign Up" : "Login"}</h2>
 
         {isSignUp && (
-          <input
-            placeholder="Full name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
-          />
+          <>
+            <input
+              placeholder="Full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
+            />
+
+            {/* ✅ NEW: Role dropdown */}
+            <select
+              value={signUpRole}
+              onChange={(e) => setSignUpRole(e.target.value)}
+              style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
+            >
+              <option value="student">Student</option>
+              <option value="admin">Admin</option>
+            </select>
+
+            {/* ✅ NEW: Admin passcode only if admin */}
+            {signUpRole === "admin" && (
+              <input
+                type="password"
+                placeholder="Admin passcode"
+                value={adminPasscode}
+                onChange={(e) => setAdminPasscode(e.target.value)}
+                style={{ width: "100%", marginBottom: "10px", padding: "8px" }}
+              />
+            )}
+          </>
         )}
 
         <input

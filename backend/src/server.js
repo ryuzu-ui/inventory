@@ -3,14 +3,14 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-const bcrypt = require("bcryptjs"); // ✅ ADD
+const bcrypt = require("bcryptjs");
 const pool = require("./db");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ (NEW) Startup DB check: proves which DB you are connected to
+// ✅ Startup DB check
 async function checkDb() {
   try {
     const r = await pool.query(`
@@ -28,14 +28,33 @@ async function checkDb() {
 }
 checkDb();
 
+// Helpers
+async function ensureRolesExist() {
+  await pool.query(`
+    INSERT INTO public.roles (name)
+    VALUES ('admin'), ('student')
+    ON CONFLICT (name) DO NOTHING;
+  `);
+}
+
+async function getRoleIdByName(roleName) {
+  const r = await pool.query(
+    `SELECT id FROM public.roles WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+    [roleName]
+  );
+  return r.rows[0]?.id || null;
+}
+
 // --------------------
-// ✅ AUTH ROUTES (NEW)
+// ✅ AUTH ROUTES
 // --------------------
 
-// Register new user (default = student)
+// Register new user
+// Default role = student
+// Admin registration is allowed ONLY if admin_secret matches ADMIN_REGISTER_SECRET
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { full_name, email, password } = req.body;
+    const { full_name, email, password, role, admin_secret } = req.body;
 
     if (!full_name || !email || !password) {
       return res.status(400).json({
@@ -45,6 +64,10 @@ app.post("/api/auth/register", async (req, res) => {
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
+    // Make sure roles exist
+    await ensureRolesExist();
+
+    // Check email exists
     const exists = await pool.query(
       `SELECT 1 FROM public.users WHERE email = $1 LIMIT 1`,
       [normalizedEmail]
@@ -53,21 +76,31 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(409).json({ error: "Email already exists" });
     }
 
-    // Check what roles exist (debug)
-    const roles = await pool.query(`SELECT id, name FROM public.roles ORDER BY id`);
+    // Decide role (safe)
+    let desiredRole = String(role || "student").trim().toLowerCase();
 
-    // Find student role
-    const roleResult = await pool.query(
-      `SELECT id FROM public.roles WHERE LOWER(name) = 'student' LIMIT 1`
-    );
-    const studentRoleId = roleResult.rows[0]?.id;
+    if (desiredRole === "admin") {
+      const secret = String(process.env.ADMIN_REGISTER_SECRET || "").trim();
 
-    if (!studentRoleId) {
+      // If you didn't set ADMIN_REGISTER_SECRET, admin registration is disabled
+      if (!secret) {
+        desiredRole = "student"; // fallback safely
+      } else if (String(admin_secret || "").trim() !== secret) {
+        return res.status(403).json({ error: "Invalid admin secret." });
+      }
+    } else {
+      desiredRole = "student";
+    }
+
+    const roleId = await getRoleIdByName(desiredRole);
+
+    if (!roleId) {
+      const roles = await pool.query(
+        `SELECT id, name FROM public.roles ORDER BY id`
+      );
       return res.status(500).json({
-        error: "Student role not found in roles table.",
+        error: `${desiredRole} role not found in roles table.`,
         rolesFound: roles.rows,
-        hint:
-          "Run: INSERT INTO public.roles (name) VALUES ('admin'),('student') ON CONFLICT (name) DO NOTHING;",
       });
     }
 
@@ -77,14 +110,17 @@ app.post("/api/auth/register", async (req, res) => {
       `
       INSERT INTO public.users (full_name, email, password_hash, role_id)
       VALUES ($1, $2, $3, $4)
-      RETURNING id, full_name, email, role_id
+      RETURNING id, full_name, email
       `,
-      [full_name, normalizedEmail, password_hash, studentRoleId]
+      [full_name, normalizedEmail, password_hash, roleId]
     );
 
-    res.status(201).json(inserted.rows[0]);
+    // ✅ Return role string too
+    return res.status(201).json({
+      ...inserted.rows[0],
+      role: desiredRole,
+    });
   } catch (err) {
-    // Even if logs don't show, we return details to the client
     return res.status(500).json({
       error: "Failed to register",
       code: err.code,
@@ -92,7 +128,6 @@ app.post("/api/auth/register", async (req, res) => {
     });
   }
 });
-
 
 // Login user
 app.post("/api/auth/login", async (req, res) => {
@@ -127,15 +162,15 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    res.json({
+    return res.json({
       id: user.id,
       full_name: user.full_name,
       email: user.email,
-      role: user.role || "student",
+      role: String(user.role || "student").toLowerCase(),
     });
   } catch (err) {
     console.error("Login error:", err.message, err.code);
-    res.status(500).json({ error: "Failed to login" });
+    return res.status(500).json({ error: "Failed to login" });
   }
 });
 
@@ -143,12 +178,12 @@ app.post("/api/auth/login", async (req, res) => {
 // EXISTING ROUTES
 // --------------------
 
-// ✅ Health check
+// Health check
 app.get("/api/health", async (req, res) => {
   res.json({ ok: true, message: "Backend is running" });
 });
 
-// ✅ 1) Get lab rooms
+// 1) Get lab rooms
 app.get("/api/lab-rooms", async (req, res) => {
   try {
     const result = await pool.query(
@@ -166,7 +201,7 @@ app.get("/api/lab-rooms", async (req, res) => {
   }
 });
 
-// ✅ 2) Get calendar events (approved reservations)
+// 2) Get calendar events (approved reservations)
 app.get("/api/room-reservations/events", async (req, res) => {
   try {
     const { start, end, roomId } = req.query;
@@ -207,7 +242,7 @@ app.get("/api/room-reservations/events", async (req, res) => {
   }
 });
 
-// ✅ 3) Side panel: reservations for a room + date
+// 3) Side panel: reservations for a room + date
 app.get("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   try {
     const roomId = Number(req.params.roomId);
@@ -239,7 +274,7 @@ app.get("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   }
 });
 
-// ✅ 4) Create reservation (pending)
+// 4) Create reservation (pending)
 app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   try {
     const roomId = Number(req.params.roomId);
@@ -304,7 +339,7 @@ app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   }
 });
 
-// ✅ 5) Admin: approve/reject reservation
+// 5) Admin: approve/reject reservation
 app.patch("/api/room-reservations/:id/status", async (req, res) => {
   try {
     const id = Number(req.params.id);

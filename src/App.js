@@ -1,15 +1,27 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import StudentPage from "./pages/StudentPage";
 import AdminPage from "./pages/AdminPage";
-import RoomCalendarPage from "./pages/RoomCalendarPage"; // ✅ add this
+import RoomCalendarPage from "./pages/RoomCalendarPage"; // ✅ your import
 import { getUser } from "./components/services/authService";
 
 function ProtectedRoute({ children, role }) {
   const user = getUser();
-  if (!user || user.role !== role) {
-    return <LoginPage />;
+
+  const userRole = String(user?.role || "").toLowerCase();
+  const requiredRole = String(role || "").toLowerCase();
+
+  // Not logged in
+  if (!user) {
+    return <Navigate to="/" replace />;
   }
+
+  // Wrong role
+  if (userRole !== requiredRole) {
+    // send them somewhere sensible
+    return <Navigate to={userRole === "admin" ? "/admin" : "/student"} replace />;
+  }
+
   return children;
 }
 
@@ -54,6 +66,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* ✅ fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
