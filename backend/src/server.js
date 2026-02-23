@@ -82,11 +82,15 @@ app.post("/api/auth/register", async (req, res) => {
     if (desiredRole === "admin") {
       const secret = String(process.env.ADMIN_REGISTER_SECRET || "").trim();
 
-      // If you didn't set ADMIN_REGISTER_SECRET, admin registration is disabled
+      // ✅ IMPORTANT: do NOT silently create student if they chose admin
       if (!secret) {
-        desiredRole = "student"; // fallback safely
-      } else if (String(admin_secret || "").trim() !== secret) {
-        return res.status(403).json({ error: "Invalid admin secret." });
+        return res.status(403).json({
+          error: "Admin signup disabled. Set ADMIN_REGISTER_SECRET in backend env.",
+        });
+      }
+
+      if (String(admin_secret || "").trim() !== secret) {
+        return res.status(403).json({ error: "Invalid admin passcode." });
       }
     } else {
       desiredRole = "student";

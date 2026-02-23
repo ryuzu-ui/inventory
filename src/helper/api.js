@@ -68,16 +68,17 @@ export async function createReservation({
 // --------------------
 // AUTH
 // --------------------
-export async function apiRegister({ full_name, email, password }) {
+// ✅ UPDATED: accept role + admin_secret
+export async function apiRegister({ full_name, email, password, role, admin_secret }) {
   const res = await fetch(`${API_BASE}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ full_name, email, password }),
+    body: JSON.stringify({ full_name, email, password, role, admin_secret }),
   });
 
   const { ok, data } = await parseJson(res);
   if (!ok) throw new Error(data?.error || "Registration failed");
-  return data; // {id, full_name, email, role_id...}
+  return data; // {id, full_name, email, role...}
 }
 
 export async function apiLogin({ email, password }) {

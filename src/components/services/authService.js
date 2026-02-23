@@ -4,15 +4,23 @@ const STORAGE_KEY = "user";
 
 export async function login(email, password) {
   const user = await apiLogin({ email, password });
-  const normalized = { ...user, role: String(user.role || "student").toLowerCase() };
+  const normalized = {
+    ...user,
+    role: String(user.role || "student").toLowerCase(),
+  };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   return normalized;
 }
 
-export async function register(full_name, email, password) {
-  await apiRegister({ full_name, email, password });
+// ✅ UPDATED: accept options (role, admin_secret, etc.)
+export async function register(full_name, email, password, options = {}) {
+  await apiRegister({ full_name, email, password, ...options });
+
   const user = await apiLogin({ email, password });
-  const normalized = { ...user, role: String(user.role || "student").toLowerCase() };
+  const normalized = {
+    ...user,
+    role: String(user.role || "student").toLowerCase(),
+  };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   return normalized;
 }
