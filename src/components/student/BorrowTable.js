@@ -11,21 +11,22 @@ import { addReservation } from "../services/reservationService";
 /* ================= STYLES ================= */
 
 const th = {
-	padding: "10px",
-	border: "1px solid #e0e0e0",
+	padding: "14px",
+	border: "1px solid #cfd8e3",
 	fontWeight: "600",
-	fontSize: "12px",
+	fontSize: "14px",
 	textAlign: "center",
-	background: "#f5f7fa",
-	color: "black"        
+	background: "#0d47a1",
+	color: "#fff",
+	whiteSpace: "nowrap"
 };
 
 const td = {
-	padding: "8px",
-	border: "1px solid #e0e0e0",
-	fontSize: "12px",
+	padding: "12px",
+	border: "1px solid #e0e6ef",
+	fontSize: "13.5px",
 	textAlign: "center",
-	color: "black",        
+	color: "#102a43",
 	background: "#fff"
 };
 
@@ -212,14 +213,21 @@ export default function BorrowTable() {
 			</div>
 
 			{/* ===== BORROW TABLE ===== */}
-			<table style={{ width: "100%", borderCollapse: "collapse" }}>
+			<table
+				style={{
+					width: "100%",
+					borderCollapse: "collapse",
+					tableLayout: "fixed",
+					background: "#fff",
+					overflow: "hidden",
+					boxShadow: "0 6px 18px rgba(13,71,161,0.12)"
+				}}
+			>
 				<thead>
 					<tr>
-						<th style={{ ...th, width: "5%" }}>No</th>
-						<th style={{ ...th, width: "90%", textAlign: "left" }}>
-							Tools
-						</th>
-						<th style={{ ...th, width: "5%" }}>Qty</th>
+						<th style={{ ...th, width: "33.33%" }}>No</th>
+						<th style={{ ...th, width: "33.33%", textAlign: "left" }}>Tools</th>
+						<th style={{ ...th, width: "33.33%" }}>Qty</th>
 					</tr>
 				</thead>
 
@@ -232,7 +240,13 @@ export default function BorrowTable() {
 						</tr>
 					) : (
 						items.map((item, i) => (
-							<tr key={item.id}>
+							<tr
+								key={item.id}
+								style={{
+									background: i % 2 === 0 ? "#ffffff" : "#eef3fb",
+									transition: "background 0.2s ease"
+								}}
+							>
 								<td style={td}>{i + 1}</td>
 								<td style={{ ...td, textAlign: "left" }}>
 									{item.tools}
@@ -246,7 +260,14 @@ export default function BorrowTable() {
 										onChange={(e) =>
 											updateQty(item.id, Number(e.target.value))
 										}
-										style={{ width: "45px", textAlign: "center" }}
+										style={{
+											width: "60px",
+											padding: "6px",
+											textAlign: "center",
+											borderRadius: "6px",
+											border: "1px solid #cfd8e3",
+											fontSize: "13px"
+										}}
 									/>
 								</td>
 							</tr>

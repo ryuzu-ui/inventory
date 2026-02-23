@@ -5,21 +5,23 @@ import * as XLSX from "xlsx";
 
 /* TABLE STYLES */
 const th = {
-	padding: "10px",
-	border: "1px solid #e0e0e0",
+	padding: "14px",
+	border: "1px solid #cfd8e3",
 	fontWeight: "600",
-	fontSize: "12px",
+	fontSize: "14px",
 	textAlign: "center",
-	background: "#f5f7fa"
+	background: "#0d47a1",
+	color: "white",
+	whiteSpace: "nowrap"
 };
 
 const td = {
-	padding: "8px",
-	border: "1px solid #e0e0e0",
-	fontSize: "12px",
-	textAlign: "center"
+	padding: "11px",
+	border: "1px solid #e0e6ef",
+	fontSize: "13.5px",
+	textAlign: "center",
+	color: "#102a43"
 };
-
 /* BUTTON STYLES */
 const btn = {
 	padding: "7px 12px",
@@ -232,7 +234,15 @@ const isSelected = (id) => selectedIds.includes(id);
 			</div>
 
 			{/* 🔹 TABLE */}
-			<table style={{ width: "100%", borderCollapse: "collapse" }}>
+			<table
+				style={{
+					width: "100%",
+					borderCollapse: "collapse",
+					background: "white",
+					overflow: "hidden",
+					boxShadow: "0 6px 18px rgba(13,71,161,0.12)"
+				}}
+			>
 				<thead>
 					<tr>
 						<th style={th}>Select</th>
@@ -260,7 +270,12 @@ const isSelected = (id) => selectedIds.includes(id);
 								style={{
 									cursor: "pointer",
 									background:
-										selectedItem?.id === item.id ? "#e8f0fe" : "transparent"
+										selectedItem?.id === item.id
+											? "#dbe7f7"          // selected
+											: i % 2 === 0
+												? "#ffffff"       // white
+												: "#eef3fb",      // light blue
+									transition: "background 0.2s ease"
 								}}
 							>
 								<td style={td}>
@@ -268,6 +283,10 @@ const isSelected = (id) => selectedIds.includes(id);
 										type="checkbox"
 										checked={selectedIds.includes(item.id)}
 										onChange={() => toggleSelect(item.id)}
+										style={{
+											transform: "scale(1.1)",
+											accentColor: "#0d47a1"
+										}}
 									/>
 								</td>
 
