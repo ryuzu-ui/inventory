@@ -1,4 +1,9 @@
+import { useTheme } from "../../context/ThemeContext";
+import { themes } from "../../theme/studentTheme";
+
 export default function StudentSidebar({ open, onClose, onNavigate }) {
+	const { theme } = useTheme();
+	const t = themes[theme];
 	return (
 		<>
 			{/* OVERLAY */}
@@ -22,7 +27,7 @@ export default function StudentSidebar({ open, onClose, onNavigate }) {
 					left: open ? 0 : "-260px",
 					width: "260px",
 					height: "100vh",
-					background: "#f8f9fa",
+					background: t.bg,
 					borderRight: "1px solid #ddd",
 					transition: "left 0.3s ease",
 					zIndex: 10,
@@ -60,7 +65,7 @@ export default function StudentSidebar({ open, onClose, onNavigate }) {
 				/>
 
 				<MenuItem
-					label="Calendar"
+					label="Room Reservation"
 					onClick={() => {
 						onNavigate("calendar");
 						onClose();

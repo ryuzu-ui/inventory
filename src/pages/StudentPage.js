@@ -3,11 +3,26 @@ import StudentHeader from "../components/layout/StudentHeader";
 import StudentSidebar from "../components/layout/StudentSidebar";
 import BorrowTable from "../components/student/BorrowTable";
 import RoomCalendarPage from "./RoomCalendarPage";
+import { useTheme } from "../context/ThemeContext";
+import { themes } from "../theme/studentTheme";
 
-export default function StudentPage() {
+
+import { ThemeProvider } from "../context/ThemeContext";
+
+export default function StudentRoot() {
+	return (
+		<ThemeProvider>
+			<StudentPage />
+		</ThemeProvider>
+	);
+}
+
+function StudentPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState("home");
   const [notification, setNotification] = useState("");
+  const { theme } = useTheme();
+  const t = themes[theme];
 
   useEffect(() => {
     document.title = "Student | Inventory System";
@@ -21,7 +36,7 @@ export default function StudentPage() {
   }, [notification]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#111", color: "white", position: "relative" }}>
+    <div style={{ minHeight: "100vh", background: t.bg , color: t.text, position: "relative" }}>
       <StudentHeader onMenuClick={() => setSidebarOpen(true)} />
 
       {/* SIDEBAR */}
