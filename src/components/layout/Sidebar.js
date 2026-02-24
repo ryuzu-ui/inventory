@@ -26,6 +26,8 @@ export default function Sidebar({ open, onClose, onNavigate }) {
 					zIndex: 10,
 					padding: "20px",
 					boxSizing: "border-box",
+					display: "flex",
+					flexDirection: "column",
 				}}
 			>
 				<div
@@ -40,33 +42,44 @@ export default function Sidebar({ open, onClose, onNavigate }) {
 					← Back
 				</div>
 
+				<div style={{ flex: 1 }}>
+					<MenuItem
+						label="Dashboard"
+						onClick={() => {
+							onNavigate("dashboard");
+							onClose();
+						}}
+					/>
+					<MenuItem
+						label="Inventory"
+						onClick={() => {
+							onNavigate("inventory");
+							onClose();
+						}}
+					/>
+					<MenuItem
+						label="Calendar"
+						onClick={() => {
+							onNavigate("calendar");
+							onClose();
+						}}
+					/>
+				</div>
+
+				{/* Logout Option Only (No Logic Attached) */}
 				<MenuItem
-					label="Dashboard"
+					label="Logout"
 					onClick={() => {
-						onNavigate("dashboard");
 						onClose();
 					}}
-				/>
-				<MenuItem
-					label="Inventory"
-					onClick={() => {
-						onNavigate("inventory");
-						onClose();
-					}}
-				/>
-				<MenuItem
-					label="Calendar"
-					onClick={() => {
-						onNavigate("calendar");
-						onClose();
-					}}
+					isLogout
 				/>
 			</div>
 		</>
 	);
 }
 
-function MenuItem({ label, onClick }) {
+function MenuItem({ label, onClick, isLogout }) {
 	return (
 		<div
 			onClick={onClick}
@@ -76,16 +89,16 @@ function MenuItem({ label, onClick }) {
 				cursor: "pointer",
 				marginBottom: "8px",
 				fontWeight: "500",
-				color: "#333",
+				color: isLogout ? "#d32f2f" : "#333",
 				transition: "0.2s",
 			}}
 			onMouseEnter={(e) => {
-				e.currentTarget.style.background = "#0d47a1";
+				e.currentTarget.style.background = isLogout ? "#d32f2f" : "#0d47a1";
 				e.currentTarget.style.color = "white";
 			}}
 			onMouseLeave={(e) => {
 				e.currentTarget.style.background = "transparent";
-				e.currentTarget.style.color = "#333";
+				e.currentTarget.style.color = isLogout ? "#d32f2f" : "#333";
 			}}
 		>
 			{label}
