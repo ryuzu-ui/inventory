@@ -21,6 +21,7 @@ function StudentPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState("home");
   const [notification, setNotification] = useState("");
+  const { theme } = useTheme();
     const [showInbox, setShowInbox] = useState(false);
 
   useEffect(() => {
@@ -35,8 +36,16 @@ function StudentPage() {
   }, [notification]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#111", color: "white", position: "relative" }}>
-      <StudentHeader onMenuClick={() => setSidebarOpen(true)} />
+    <div
+    style={{
+      minHeight: "100vh",
+      background: theme.bg,
+      color: theme.text,
+      position: "relative"
+    }}
+  >      
+  
+  <StudentHeader onMenuClick={() => setSidebarOpen(true)} />
 
       <div style={{
         position: "fixed",
@@ -116,10 +125,10 @@ function StudentPage() {
               gap: "20px",
               marginBottom: "30px"
             }}>
-              <div style={cardStyle}><h3>Borrowed Items</h3></div>
-              <div style={cardStyle}><h3>Pending Requests</h3></div>
-              <div style={cardStyle}><h3>Overdue Items</h3></div>
-              <div style={cardStyle}><h3>Borrow History</h3></div>
+              <div style={cardStyle(theme)}><h3>Borrowed Items</h3></div>
+              <div style={cardStyle(theme)}><h3>Pending Requests</h3></div>
+              <div style={cardStyle(theme)}><h3>Overdue Items</h3></div>
+              <div style={cardStyle(theme)}><h3>Borrow History</h3></div>
             </div>
 
             <div style={{
@@ -143,7 +152,7 @@ function StudentPage() {
               </button>
             </div>
 
-            <div style={activityBox}>
+            <div style={activityBox(theme)}>
               <h3 style={{ marginBottom: "15px" }}>Recent Activity</h3>
               <div style={{ maxHeight: "250px", overflowY: "auto" }}>
                 <p style={{ opacity: 0.5 }}>
@@ -169,15 +178,16 @@ function StudentPage() {
 
 /* ================= STYLES ================= */
 
-const cardStyle = {
-  background: "linear-gradient(145deg, #1e293b, #0f172a)",
-  padding: "25px",
-  borderRadius: "16px",
-  minHeight: "120px",
-  display: "flex",
-  alignItems: "center",
-  boxShadow: "0 8px 20px rgba(0,0,0,0.3)"
-};
+const cardStyle = (theme) => ({
+	background: theme.card,
+	color: theme.text,
+	padding: "25px",
+	borderRadius: "16px",
+	minHeight: "120px",
+	display: "flex",
+	alignItems: "center",
+	boxShadow: "0 8px 20px rgba(0,0,0,0.3)"
+});
 
 const primaryBtn = {
   padding: "12px 25px",
@@ -200,9 +210,10 @@ const secondaryBtn = {
   fontWeight: "600"
 };
 
-const activityBox = {
-  background: "#1e293b",
-  padding: "20px",
-  borderRadius: "16px",
-  boxShadow: "0 8px 20px rgba(0,0,0,0.3)"
-};
+const activityBox = (theme) => ({
+	background: theme.card,
+	color: theme.text,
+	padding: "20px",
+	borderRadius: "16px",
+	boxShadow: "0 8px 20px rgba(0,0,0,0.3)"
+});

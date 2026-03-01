@@ -1,22 +1,30 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import { themes } from "../theme/studentTheme";
+
 
 const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
-	const [theme, setTheme] = useState(
+	const [themeName, setThemeName] = useState(
 		localStorage.getItem("theme") || "dark"
 	);
 
 	useEffect(() => {
-		localStorage.setItem("theme", theme);
-	}, [theme]);
+		localStorage.setItem("theme", themeName);
+	}, [themeName]);
 
 	const toggleTheme = () => {
-		setTheme(prev => (prev === "dark" ? "light" : "dark"));
+		setThemeName(prev => (prev === "dark" ? "light" : "dark"));
 	};
 
 	return (
-		<ThemeContext.Provider value={{ theme, toggleTheme }}>
+		<ThemeContext.Provider
+			value={{
+				themeName,
+				theme: themes[themeName],
+				toggleTheme
+			}}
+		>
 			{children}
 		</ThemeContext.Provider>
 	);

@@ -4,8 +4,8 @@ export const themes = {
 		card: "#1e1e1e",
 		text: "#ffffff",
 		header: "#0d47a1",
-		sidebar: "#f8f9fa",
-		modal: "#ffffff",
+		sidebar: "#1a1a1a",
+		modal: "#1e1e1e",
 		border: "#333"
 	},
 	light: {
