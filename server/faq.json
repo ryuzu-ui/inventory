@@ -1,0 +1,22 @@
+[
+	{
+		"question": "How do I borrow equipment?",
+		"answer": "You can borrow equipment by going to the Borrow Equipment page and submitting a request."
+	},
+	{
+		"question": "Who is allowed to borrow items?",
+		"answer": "Only registered and logged-in students are allowed to borrow equipment."
+	},
+	{
+		"question": "What should I do if the equipment is damaged?",
+		"answer": "If the item is damaged, please report it immediately to the admin."
+	},
+	{
+		"question": "How long can I borrow an item?",
+		"answer": "The borrowing duration depends on the equipment and admin approval."
+	},
+	{
+		"question": "Can I cancel my borrowing request?",
+		"answer": "Yes, you can cancel your request if it has not yet been approved."
+	}
+]

@@ -2,6 +2,7 @@
   "name": "my-app",
   "version": "0.1.0",
   "private": true,
+
   "dependencies": {
     "@fullcalendar/bootstrap5": "^6.1.20",
     "@fullcalendar/daygrid": "^6.1.20",
@@ -13,9 +14,11 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "bootstrap": "^5.3.8",
+    "cors": "^2.8.6",
     "date-fns": "^4.1.0",
     "docx": "^9.5.1",
     "docxtemplater": "^3.67.6",
+    "express": "^5.2.1",
     "file-saver": "^2.0.5",
     "pizzip": "^3.2.0",
     "react": "^19.2.3",
@@ -23,31 +26,27 @@
     "react-router-dom": "^7.10.1",
     "react-scripts": "5.0.1",
     "recharts": "^3.7.0",
+    "string-similarity": "^4.0.4",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },
+
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node server/server.js",
+    "client": "react-scripts start"
   },
+
   "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "extends": ["react-app", "react-app/jest"]
   },
+
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version", "last 1 firefox version", "last 1 safari version"]
+  },
+
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

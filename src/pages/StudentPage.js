@@ -5,6 +5,7 @@ import BorrowTable from "../components/student/BorrowTable";
 import RoomCalendarPage from "./RoomCalendarPage";
 import { useTheme } from "../context/ThemeContext";
 import { themes } from "../theme/studentTheme";
+import ChatbotWidget from "../components/student/ChatbotWidget";
 
 
 import { ThemeProvider } from "../context/ThemeContext";
@@ -94,6 +95,8 @@ function StudentPage() {
           setSidebarOpen(false);
         }}
       />
+
+      <ChatbotWidget />
 
       {notification && (
         <div style={{
