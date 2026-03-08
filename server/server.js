@@ -52,7 +52,7 @@ app.post("/chat", (req, res) => {
 
 	if (score > 0.5) {
 		return res.json({
-			reply: Did you mean: "${faqs[index].question}"?,
+			reply: `Did you mean: "${faqs[index].question}"?`,
 			confidence: score,
 			lang: language
 		})
