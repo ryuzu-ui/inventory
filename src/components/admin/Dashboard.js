@@ -8,6 +8,8 @@ import {
   ResponsiveContainer,
   Cell,
   LabelList,
+  Line,
+  LineChart
 } from "recharts";
 
 import {
@@ -15,6 +17,10 @@ import {
   getAdminRoomReservations,
   updateReservationStatus,
 } from "../../helper/api";
+
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
 
 /* ✅ BLACK TOOLTIP */
 const CustomTooltip = ({ active, payload, label }) => {
@@ -44,6 +50,13 @@ export default function Dashboard() {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  const calendarEvents = useMemo(() => {
+    return reservations.map(r => ({
+      title: r.room_name,
+      date: String(r.reservation_date).slice(0,10)
+    }));
+  }, [reservations]);
 
   const refresh = async () => {
     setLoading(true);
@@ -113,179 +126,385 @@ export default function Dashboard() {
     }
   };
 
-  return (
-    <div style={{ padding: "20px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Inventory Dashboard</h2>
-        <button
-          onClick={refresh}
-          style={{ padding: "10px 12px", borderRadius: 8, cursor: "pointer" }}
-        >
-          Refresh
-        </button>
-      </div>
+	return (
+	<div style={styles.dashboard}>
 
-      {loading && <div style={{ marginTop: 10 }}>Loading…</div>}
-      {message && (
-        <div style={{ marginTop: 10 }}>{message}</div>
-      )}
+		{/* HEADER */}
+		<div style={styles.header}>
+			<h2>Dashboard User</h2>
 
-      {/* KPI CARDS */}
-      <div style={styles.grid}>
-        <Card title="Total Reservations" value={total} />
-        <Card title="Pending" value={pending} color="#facc15" />
-        <Card title="Approved" value={approved} color="#2563eb" />
-        <Card title="Cancelled" value={cancelled} color="#dc2626" />
-      </div>
+			<button onClick={refresh} style={styles.refreshBtn}>
+				Refresh
+			</button>
+		</div>
 
-      {/* CHARTS */}
-      <div style={{ ...styles.grid, marginTop: 20 }}>
-        <ChartCard title="Reservation Status">
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={statusData}>
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value">
-                {statusData.map((entry, index) => (
-                  <Cell
-                    key={index}
-                    fill={getStatusColor(entry.name)}
+		{/* KPI CARDS */}
+		<div style={styles.topCards}>
+			<Card title="Total Reservations" value={total} />
+			<Card title="Pending" value={pending} color="#facc15" />
+			<Card title="Approved" value={approved} color="#2563eb" />
+			<Card title="Cancelled" value={cancelled} color="#dc2626" />
+		</div>
+
+          {/* CHARTS */}
+
+          <div style={styles.chartGrid}>
+
+            {/* BAR CHART */}
+            <ChartCard title="Reservation Status">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statusData}>
+                  <XAxis dataKey="name"/>
+                  <YAxis allowDecimals={false}/>
+                  <Tooltip content={<CustomTooltip/>}/>
+                  <Bar dataKey="value">
+                    {statusData.map((entry,index)=>(
+                      <Cell key={index} fill={getStatusColor(entry.name)} />
+                    ))}
+                    <LabelList dataKey="value" position="top"/>
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* PROGRESS */}
+            <ProgressWidget/>
+
+            {/* LINE CHART */}
+            <ChartCard title="Pending Requests by Room">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={roomsData}>
+                  <XAxis dataKey="name"/>
+                  <YAxis allowDecimals={false}/>
+                  <Tooltip content={<CustomTooltip/>}/>
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#f59e0b"
+                    strokeWidth={3}
                   />
-                ))}
-                <LabelList dataKey="value" position="top" fill="black" />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartCard>
 
-        <ChartCard title="Pending Requests by Room">
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={roomsData}>
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" fill="#facc15">
-                <LabelList dataKey="value" position="top" fill="black" />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+            {/* CALENDAR */}
+            <MiniCalendar events={calendarEvents}/>
 
-          {roomsData.length === 0 && (
-            <div style={{ marginTop: 10 }}>No pending requests.</div>
-          )}
-        </ChartCard>
-      </div>
+          </div>
 
-      {/* TABLE */}
-      <h3 style={{ marginTop: 30 }}>Pending Room Reservations</h3>
+		{/* TABLE */}
+		<div style={{marginTop:"30px"}}>
 
-      <table border="1" cellPadding="8" width="100%">
-        <thead>
-          <tr>
-            <th>Requested By</th>
-            <th>Room</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
+			<h3>Pending Room Reservations</h3>
 
-        <tbody>
-          {reservations.length === 0 ? (
-            <tr>
-              <td colSpan="6" align="center">
-                No pending reservations
-              </td>
-            </tr>
-          ) : (
-            reservations.map((r) => (
-              <tr key={r.id}>
-                <td>{r.reserved_by_name || `User #${r.reserved_by}`}</td>
+			<div style={styles.tableCard}>
 
-                <td style={{ color: "black" }}>
-                  {r.room_name}
-                </td>
+				<table style={styles.table}>
+					<thead>
+						<tr>
+							<th>Requested By</th>
+							<th>Room</th>
+							<th>Date</th>
+							<th>Time</th>
+							<th>Status</th>
+							<th>Action</th>
+						</tr>
+					</thead>
 
-                <td>{String(r.reservation_date).slice(0, 10)}</td>
+					<tbody>
 
-                <td>
-                  {String(r.start_time).slice(0, 5)} –{" "}
-                  {String(r.end_time).slice(0, 5)}
-                </td>
+						{reservations.length === 0 ? (
+							<tr>
+								<td colSpan="6" align="center">
+									No pending reservations
+								</td>
+							</tr>
+						) : (
+							reservations.map((r)=>(
+								<tr key={r.id}>
 
-                <td style={{ color: "black" }}>
-                  {r.status}
-                </td>
+									<td>{r.reserved_by_name || `User #${r.reserved_by}`}</td>
 
-                <td>
-                  {String(r.status).toLowerCase() === "pending" ? (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        onClick={() => handleSetStatus(r.id, "approved")}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleSetStatus(r.id, "cancelled")}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
+									<td>{r.room_name}</td>
+
+									<td>{String(r.reservation_date).slice(0,10)}</td>
+
+									<td>
+										{String(r.start_time).slice(0,5)} –
+										{String(r.end_time).slice(0,5)}
+									</td>
+
+									<td>{r.status}</td>
+
+									<td>
+
+										{String(r.status).toLowerCase()==="pending" ? (
+
+											<div style={{display:"flex",gap:"8px"}}>
+
+												<button
+													onClick={()=>handleSetStatus(r.id,"approved")}
+													style={styles.approveBtn}
+												>
+													Approve
+												</button>
+
+												<button
+													onClick={()=>handleSetStatus(r.id,"cancelled")}
+													style={styles.rejectBtn}
+												>
+													Reject
+												</button>
+
+											</div>
+
+										) : "-"}
+
+									</td>
+
+								</tr>
+							))
+						)}
+
+					</tbody>
+				</table>
+
+			</div>
+
+		</div>
+
+	</div>
+);
 }
 
-function Card({ title, value, color }) {
-  return (
-    <div
-      style={{
-        ...styles.card,
-        borderLeft: color ? `6px solid ${color}` : "",
-      }}
-    >
-      <h4>{title}</h4>
-      <h2 style={{ color: color || "#000" }}>{value}</h2>
-    </div>
-  );
+function Card({ title, value, dark }) {
+
+	return (
+		<div style={{
+			...styles.statCard,
+			background: dark ? "#1f3b63" : "#fff",
+			color: dark ? "#fff" : "#333"
+		}}>
+
+			<div style={styles.statTop}>
+				<span>{title}</span>
+				<span style={styles.icon}>★</span>
+			</div>
+
+			<h2 style={{marginTop:"10px"}}>
+				{value}
+			</h2>
+
+		</div>
+	);
+
 }
 
 function ChartCard({ title, children }) {
   return (
-    <div style={{ ...styles.card, height: 320 }}>
+    <div style={{...styles.card, height:"320px"}}>
       <h4>{title}</h4>
       {children}
     </div>
   );
 }
 
+function ProgressWidget() {
+  return (
+    <div style={styles.progressCard}>
+      <h4>Progress</h4>
+
+      <div style={styles.donut}>
+        <div style={styles.donutInner}>45%</div>
+      </div>
+
+      <div style={styles.progressText}>
+        <p>Lorem ipsum</p>
+        <p>Lorem ipsum</p>
+        <p>Lorem ipsum</p>
+      </div>
+
+      <button style={styles.orangeBtn}>
+        Check Now
+      </button>
+    </div>
+  );
+}
+
+function MiniCalendar({ events }) {
+
+	return (
+		<div style={styles.calendarCard}>
+
+			<h4 style={{marginBottom:"10px"}}>Room Calendar</h4>
+
+			<FullCalendar
+        plugins={[dayGridPlugin, interactionPlugin]}
+        initialView="dayGridMonth"
+        height="220px"
+				headerToolbar={{
+					left:"prev,next",
+					center:"title",
+					right:""
+				}}
+				events={events}
+			/>
+
+		</div>
+	);
+
+}
+
 const styles = {
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "16px",
+
+	dashboard:{
+		padding:"25px",
+		background:"#f5f7fb",
+		minHeight:"100vh"
+	},
+
+	header:{
+		display:"flex",
+		justifyContent:"space-between",
+		alignItems:"center",
+		marginBottom:"20px"
+	},
+
+	refreshBtn:{
+		padding:"8px 14px",
+		borderRadius:"8px",
+		cursor:"pointer"
+	},
+
+	kpiGrid:{
+		display:"grid",
+		gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",
+		gap:"16px",
+		marginBottom:"20px"
+	},
+
+  chartGrid:{
+    display:"grid",
+    gridTemplateColumns:"2fr 1fr",
+    gridTemplateRows:"1fr 1fr",
+    gap:"20px",
+    marginTop:"20px"
   },
-  card: {
-    background: "#fff",
-    padding: "16px",
-    borderRadius: "10px",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+
+	card:{
+		background:"#fff",
+		padding:"16px",
+		borderRadius:"10px",
+		boxShadow:"0 4px 10px rgba(0,0,0,0.08)"
+	},
+
+	tableCard:{
+		background:"#fff",
+		padding:"16px",
+		borderRadius:"10px",
+		boxShadow:"0 4px 10px rgba(0,0,0,0.08)"
+	},
+
+	table:{
+		width:"100%",
+		borderCollapse:"collapse"
+	},
+
+	approveBtn:{
+		background:"#2563eb",
+		color:"#fff",
+		border:"none",
+		padding:"6px 10px",
+		borderRadius:"6px",
+		cursor:"pointer"
+	},
+
+	rejectBtn:{
+		background:"#dc2626",
+		color:"#fff",
+		border:"none",
+		padding:"6px 10px",
+		borderRadius:"6px",
+		cursor:"pointer"
+	},
+
+  progressCard:{
+    background:"#fff",
+    padding:"16px",
+    borderRadius:"10px",
+    boxShadow:"0 4px 10px rgba(0,0,0,0.08)",
+    textAlign:"center"
   },
+
+  donut:{
+    width:"120px",
+    height:"120px",
+    borderRadius:"50%",
+    border:"14px solid #f59e0b",
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    margin:"20px auto"
+  },
+
+  donutInner:{
+    fontSize:"22px",
+    fontWeight:"bold"
+  },
+
+  progressText:{
+    fontSize:"12px",
+    color:"#777",
+    marginBottom:"10px"
+  },
+
+  orangeBtn:{
+    background:"#f59e0b",
+    border:"none",
+    color:"#fff",
+    padding:"8px 12px",
+    borderRadius:"6px",
+    cursor:"pointer"
+  },
+
+  topCards:{
+    display:"grid",
+    gridTemplateColumns:"repeat(4,1fr)",
+    gap:"20px",
+    marginBottom:"30px"
+  },
+
+  statCard:{
+    padding:"18px",
+    borderRadius:"10px",
+    boxShadow:"0 6px 14px rgba(0,0,0,0.1)",
+    height:"100%"
+  },
+
+  statTop:{
+    display:"flex",
+    justifyContent:"space-between",
+    alignItems:"center",
+    fontSize:"14px",
+    opacity:0.8
+  },
+
+  icon:{
+    fontSize:"16px"
+  },
+
+  calendarCard:{
+    background:"#fff",
+    padding:"16px",
+    borderRadius:"10px",
+    boxShadow:"0 4px 10px rgba(0,0,0,0.08)"
+  },
+
+  sideWidgets:{
+    display:"grid",
+    gridTemplateRows:"auto auto",
+    gap:"20px",
+    alignContent:"start"
+  },
+
 };
