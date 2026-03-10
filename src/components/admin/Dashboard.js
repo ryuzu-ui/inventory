@@ -11,7 +11,6 @@ import {
   Line,
   LineChart
 } from "recharts";
-
 import {
   getAdminStats,
   getAdminRoomReservations,
@@ -333,28 +332,99 @@ function ProgressWidget() {
 
 function MiniCalendar({ events }) {
 
-	return (
-		<div style={styles.calendarCard}>
+  const [currentDate,setCurrentDate] = useState(new Date())
+  const [hoverData,setHoverData] = useState(null)
 
-			<h4 style={{marginBottom:"10px"}}>Room Calendar</h4>
+  const year = currentDate.getFullYear()
+  const month = currentDate.getMonth()
 
-			<FullCalendar
-        plugins={[dayGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        height="220px"
-				headerToolbar={{
-					left:"prev,next",
-					center:"title",
-					right:""
-				}}
-				events={events}
-			/>
+  const firstDay = new Date(year, month, 1).getDay()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
 
-		</div>
-	);
+  const days = []
 
+  for(let i=0;i<firstDay;i++){
+    days.push(null)
+  }
+
+  for(let d=1; d<=daysInMonth; d++){
+    days.push(d)
+  }
+
+  const prevMonth = () =>{
+    setCurrentDate(new Date(year,month-1,1))
+  }
+
+  const nextMonth = () =>{
+    setCurrentDate(new Date(year,month+1,1))
+  }
+
+  return (
+
+    <div style={styles.calendarCard}>
+
+      {/* HEADER */}
+      <div style={styles.calendarHeaderBar}>
+        <button onClick={prevMonth} style={styles.calendarNavBtn}>◀</button>
+
+        <h4>
+          {currentDate.toLocaleString("default",{month:"long"})} {year}
+        </h4>
+
+        <button onClick={nextMonth} style={styles.calendarNavBtn}>▶</button>
+      </div>
+
+      {/* DAYS GRID */}
+      <div style={styles.calendarGrid}>
+
+        {["S","M","T","W","T","F","S"].map(d=>(
+          <div key={d} style={styles.calendarWeek}>{d}</div>
+        ))}
+
+        {days.map((d,i)=>{
+
+          const reservations = events.filter(e=>{
+            const date = new Date(e.date)
+            return date.getDate() === d &&
+                   date.getMonth() === month &&
+                   date.getFullYear() === year
+          })
+
+          const hasEvent = reservations.length > 0
+
+          return (
+            <div
+              key={i}
+              style={{
+                ...styles.calendarDay,
+                background: hasEvent ? "#f59e0b" : "transparent",
+                color: hasEvent ? "#fff" : "#333"
+              }}
+              onMouseEnter={()=>setHoverData(reservations)}
+              onMouseLeave={()=>setHoverData(null)}
+            >
+              {d || ""}
+            </div>
+          )
+
+        })}
+
+      </div>
+
+      {/* HOVER INFO */}
+      {hoverData && hoverData.length > 0 && (
+        <div style={styles.calendarTooltip}>
+          {hoverData.map((r,i)=>(
+            <div key={i}>
+              📍 {r.title}
+            </div>
+          ))}
+        </div>
+      )}
+
+    </div>
+  )
 }
-
 const styles = {
 
 	dashboard:{
@@ -506,5 +576,74 @@ const styles = {
     gap:"20px",
     alignContent:"start"
   },
+
+  calendarGrid:{
+    display:"grid",
+    gridTemplateColumns:"repeat(7,1fr)",
+    gap:"4px",
+    fontSize:"12px"
+  },
+
+  calendarHeader:{
+    textAlign:"center",
+    fontWeight:"bold",
+    fontSize:"11px"
+  },
+
+  calendarDay:{
+    height:"24px",
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    borderRadius:"4px"
+  },
+
+  calendarHeaderBar:{
+    display:"flex",
+    justifyContent:"space-between",
+    alignItems:"center",
+    marginBottom:"10px"
+  },
+
+  calendarNavBtn:{
+    border:"none",
+    background:"#eee",
+    padding:"4px 8px",
+    borderRadius:"4px",
+    cursor:"pointer"
+  },
+
+  calendarGrid:{
+    display:"grid",
+    gridTemplateColumns:"repeat(7,1fr)",
+    gap:"8px",
+    fontSize:"14px"
+  },
+
+  calendarWeek:{
+    textAlign:"center",
+    fontWeight:"bold"
+  },
+
+  calendarDay:{
+    height:"34px",
+    display:"flex",
+    alignItems:"center",
+    justifyContent:"center",
+    borderRadius:"6px",
+    cursor:"pointer",
+    transition:"0.2s"
+  },
+
+  calendarTooltip:{
+    marginTop:"10px",
+    background:"#fff",
+    padding:"8px",
+    borderRadius:"6px",
+    boxShadow:"0 4px 10px rgba(0,0,0,0.1)",
+    fontSize:"12px"
+  },
+
+  
 
 };
