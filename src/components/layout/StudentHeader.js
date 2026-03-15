@@ -1,9 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useTheme } from "../../context/ThemeContext";
+import { getUser, logout } from "../services/authService";
+import { useNavigate } from "react-router-dom";
 
 export default function StudentHeader({ onMenuClick }) {
     const [showProfile, setShowProfile] = useState(false);
     const [activePanel, setActivePanel] = useState(null);
+
+    const user = getUser();
+
+    const navigate = useNavigate();
 
     const profileRef = useRef(null);
     const { theme, themeName, toggleTheme } = useTheme();
@@ -135,6 +141,12 @@ export default function StudentHeader({ onMenuClick }) {
                                     borderTop: `1px solid ${theme.border}`,
                                     color: "#c62828"
                                 }}
+                                onClick={() => {
+                                    logout();
+                                    setShowProfile(false);
+                                    setActivePanel(null);
+                                    navigate("/");
+                                }}
                             >
                                 Logout
                             </div>
@@ -200,7 +212,7 @@ export default function StudentHeader({ onMenuClick }) {
                                 S
                             </div>
                             <div style={{ display: "flex", flexDirection: "column" }}>
-                                <div style={{ fontWeight: "600", fontSize: "15px", color: theme.text }}>Student Name</div>
+                                <div style={{ fontWeight: "600", fontSize: "15px", color: theme.text }}>{user?.full_name || "Student"}</div>
                                 <div style={{ fontSize: "12px", color: labelColor }}>Full Name</div>
                             </div>
                         </div>
@@ -212,6 +224,7 @@ export default function StudentHeader({ onMenuClick }) {
                                     type="text"
                                     placeholder=""
                                     disabled
+                                    value={user?.email || ""}
                                     style={{
                                         width: "100%",
                                         height: "22px",
@@ -229,6 +242,7 @@ export default function StudentHeader({ onMenuClick }) {
                                     type="text"
                                     placeholder=""
                                     disabled
+                                    value={user?.school_id || ""}
                                     style={{
                                         width: "100%",
                                         height: "22px",

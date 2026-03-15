@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+import { logout } from "../services/authService";
+
 export default function Sidebar({ open, onClose, onNavigate }) {
+	const navigate = useNavigate();
 	return (
 		<>
 			{open && (
@@ -74,10 +78,12 @@ export default function Sidebar({ open, onClose, onNavigate }) {
 					/>
 				</div>
 
-				{/* Logout Option Only (No Logic Attached) */}
+				{/* Logout Option Only */}
 				<MenuItem
 					label="Logout"
 					onClick={() => {
+						logout();
+						navigate("/");
 						onClose();
 					}}
 					isLogout

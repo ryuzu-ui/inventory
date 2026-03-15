@@ -56,15 +56,16 @@ async function getRoleIdByName(roleName) {
 // Admin registration is allowed ONLY if admin_secret matches ADMIN_REGISTER_SECRET
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { full_name, email, password, role, admin_secret } = req.body;
+    const { full_name, email, password, role, admin_secret, school_id } = req.body;
 
-    if (!full_name || !email || !password) {
+    if (!full_name || !email || !password || !school_id) {
       return res.status(400).json({
-        error: "full_name, email, password are required",
+        error: "full_name, email, password, and school_id are required",
       });
     }
 
-    const normalizedEmail = String(email).trim().toLowerCase();
+    const identifier = String(email).trim();
+    const normalizedEmail = identifier.toLowerCase();
 
     // Make sure roles exist
     await ensureRolesExist();
@@ -114,11 +115,11 @@ app.post("/api/auth/register", async (req, res) => {
 
     const inserted = await pool.query(
       `
-      INSERT INTO public.users (full_name, email, password_hash, role_id)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, full_name, email
+      INSERT INTO public.users (full_name, email, password_hash, role_id, school_id)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, full_name, email, school_id
       `,
-      [full_name, normalizedEmail, password_hash, roleId]
+      [full_name, normalizedEmail, password_hash, roleId, school_id]
     );
 
     // ✅ Return role string too
@@ -144,17 +145,18 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "email and password are required" });
     }
 
-    const normalizedEmail = String(email).trim().toLowerCase();
+    const identifier = String(email).trim();
+    const normalizedEmail = identifier.toLowerCase();
 
     const result = await pool.query(
       `
-      SELECT u.id, u.full_name, u.email, u.password_hash, r.name AS role
+      SELECT u.id, u.full_name, u.email, u.password_hash, u.school_id, r.name AS role
       FROM public.users u
       LEFT JOIN public.roles r ON u.role_id = r.id
-      WHERE u.email = $1
+      WHERE LOWER(u.email) = $1 OR u.school_id = $2
       LIMIT 1
       `,
-      [normalizedEmail]
+      [normalizedEmail, identifier]
     );
 
     if (result.rows.length === 0) {
@@ -172,6 +174,7 @@ app.post("/api/auth/login", async (req, res) => {
       id: user.id,
       full_name: user.full_name,
       email: user.email,
+      school_id: user.school_id,
       role: String(user.role || "student").toLowerCase(),
     });
   } catch (err) {

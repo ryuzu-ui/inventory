@@ -66,7 +66,7 @@ export default function LoginPage() {
       }
 
       const user = await register(fullName, email, password, {
-        id_number: idNumber,
+        school_id: idNumber,
         role: signUpRole,
         admin_secret: signUpRole === "admin" ? adminPasscode : undefined,
       });
@@ -183,7 +183,11 @@ export default function LoginPage() {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          style={styles.button}
+          style={{
+            ...styles.button,
+            opacity: loading ? 0.5 : 1,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
         >
           {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Login"}
         </button>
@@ -211,12 +215,15 @@ const styles = {
     display: "block",
     margin: "0 auto",
     width: "100%",
-    padding: "10px",
+    padding: "12px",
+    marginTop: "6px",
     background: "#0d47a1",
     color: "white",
     border: "none",
     borderRadius: "6px",
     cursor: "pointer",
+    fontWeight: 600,
+    opacity: 1,
   },
   linkButton: {
     background: "none",
@@ -225,5 +232,6 @@ const styles = {
     cursor: "pointer",
     textDecoration: "underline",
     fontSize: "14px",
+    padding: 0,
   },
 };
