@@ -646,7 +646,12 @@ app.post("/api/borrow-requests", async (req, res) => {
     const insertedReq = await client.query(
       `
       INSERT INTO public.borrow_requests (student_id, status, borrow_date, return_date)
-      VALUES ($1, 'pending', COALESCE($2::date, CURRENT_DATE), $3::date)
+      VALUES (
+        $1,
+        'pending',
+        COALESCE($2::date, CURRENT_DATE),
+        COALESCE($3::date, COALESCE($2::date, CURRENT_DATE))
+      )
       RETURNING id, student_id, status, borrow_date, return_date, created_at
       `,
       [studentIdNum, borrow_date || null, return_date || null]
