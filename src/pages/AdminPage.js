@@ -5,28 +5,29 @@ import InventoryTable from "../components/inventory/InventoryTable";
 import Dashboard from "../components/admin/Dashboard";
 import RoomCalendarPage from "./RoomCalendarPage";
 import FAQManager from "../components/admin/FAQManager"
+import { getItems } from "../helper/api";
+import BorrowRequests from "../components/admin/BorrowRequests";
 
 export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState("dashboard");
 
-  const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem("inventory");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [items, setItems] = useState([]);
 
   useEffect(() => {
     document.title = "Admin | Inventory System";
   }, []);
 
   useEffect(() => {
-    const handleStorage = () => {
-      const saved = localStorage.getItem("inventory");
-      if (saved) setItems(JSON.parse(saved));
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    (async () => {
+      try {
+        const data = await getItems();
+        setItems(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error("getItems error:", e);
+        setItems([]);
+      }
+    })();
   }, []);
 
   return (
@@ -49,12 +50,9 @@ export default function AdminPage() {
           <InventoryTable items={items} setItems={setItems} />
         )}
 
-        {page === "calendar" && (
-          <>
-            <h2 style={{ marginTop: 0 }}>Lab Room Calendar</h2>
-            <RoomCalendarPage />
-          </>
-        )}
+        {page === "calendar" && <RoomCalendarPage />}
+
+        {page === "borrow_requests" && <BorrowRequests />}
 
         {/* NEW FAQ PAGE */}
         {page === "faq" && (

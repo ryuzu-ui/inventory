@@ -68,6 +68,13 @@ export default function Sidebar({ open, onClose, onNavigate }) {
 							onClose();
 						}}
 					/>
+					<MenuItem
+						label="Borrow Requests"
+						onClick={() => {
+							onNavigate("borrow_requests");
+							onClose();
+						}}
+					/>
 
 					<MenuItem
 					label="FAQ Manager"

@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { PrintBorrowPDF } from "./PrintBorrowPDF";
 import { getUser } from "../services/authService";
-import {
-	loadScheduleInventory,
-	saveScheduleInventory
-} from "../services/scheduleInventory";
-import { addReservation } from "../services/reservationService";
+import { createBorrowRequest, getItems } from "../../helper/api";
 
 
 /* ================= STYLES ================= */
@@ -62,18 +58,25 @@ export default function BorrowTable() {
 	const [items, setItems] = useState([]);
 	const [showModal, setShowModal] = useState(false);
 	const [search, setSearch] = useState("");
+	const [message, setMessage] = useState("");
 
 	const [name, setName] = useState("");
 	const [labNo, setLabNo] = useState("");
 	const [controlNo, setControlNo] = useState("");
 
-	/* ===== LOAD INVENTORY PER SCHEDULE ===== */
+	/* ===== LOAD INVENTORY (DB ITEMS) ===== */
 	useEffect(() => {
-		const user = getUser();
-		if (!user) return;
-
-		const inv = loadScheduleInventory(user);
-		setInventory(inv);
+		(async () => {
+			try {
+				setMessage("");
+				const data = await getItems();
+				setInventory(Array.isArray(data) ? data : []);
+			} catch (e) {
+				console.error("getItems error:", e);
+				setInventory([]);
+				setMessage(e.message || "Failed to load inventory.");
+			}
+		})();
 	}, []);
 
 	/* ===== LOAD SAVED BORROW ITEMS ===== */
@@ -103,9 +106,11 @@ export default function BorrowTable() {
 				...items,
 				{
 					id: item.id,
-					tools: item.tools,
+					item_name: item.item_name,
+					item_code: item.item_code,
+					category: item.category,
 					qty: 1,
-					maxQty: item.endInventory ?? item.qty
+					maxQty: item.quantity ?? 0
 				}
 			]);
 		}
@@ -123,41 +128,55 @@ export default function BorrowTable() {
 		}));
 	};
 
-	/* ===== CONFIRM BORROW (SAVE LANG) ===== */
-	const confirmBorrow = () => {
+	/* ===== CONFIRM BORROW (CREATE BORROW REQUEST) ===== */
+	const confirmBorrow = async () => {
 		const user = getUser();
 		if (!user) return;
+		setMessage("");
 
-		const updated = inventory.map(inv => {
-			const item = items.find(i => i.id === inv.id);
-			if (!item) return inv;
+		const studentId = Number(user?.id);
+		if (!Number.isInteger(studentId) || studentId <= 0) {
+			return setMessage("You must be logged in to borrow.");
+		}
 
-			if (item.qty > inv.qty) {
-				alert(`Not enough stock for ${inv.tools}`);
-				throw new Error("Stock error");
-			}
+		if (items.length === 0) {
+			return setMessage("Please add at least one item.");
+		}
 
-			return {
-				...inv,
-				qty: inv.qty - item.qty,
-				borrowed: (inv.borrowed || 0) + item.qty
-			};
-		});
+		try {
+			await createBorrowRequest({
+				student_id: studentId,
+				items: items.map((i) => ({
+					item_id: i.id,
+					quantity: i.qty,
+				})),
+			});
 
-		saveScheduleInventory(user, updated);
-		setInventory(updated);
-		setItems([]);
+			setItems([]);
+			setShowModal(false);
+			setMessage("✅ Borrow request submitted (pending approval). ");
 
-		alert("Reservation successful");
+			// refresh inventory quantities view
+			const refreshed = await getItems();
+			setInventory(Array.isArray(refreshed) ? refreshed : []);
+		} catch (e) {
+			console.error("createBorrowRequest error:", e);
+			setMessage(e.message || "Failed to submit borrow request.");
+		}
 	};
 
 
 
 
 	/* ===== SEARCH FILTER ===== */
-	const filteredInventory = inventory.filter(item =>
-		item.tools.toLowerCase().includes(search.toLowerCase())
-	);
+	const filteredInventory = inventory.filter(item => {
+		const s = search.toLowerCase();
+		return (
+			String(item.item_name || "").toLowerCase().includes(s) ||
+			String(item.item_code || "").toLowerCase().includes(s) ||
+			String(item.category || "").toLowerCase().includes(s)
+		);
+	});
 
 	return (
 		<div>
@@ -212,6 +231,12 @@ export default function BorrowTable() {
 				</div>
 			</div>
 
+			{message && (
+				<div style={{ marginBottom: 12, fontWeight: 600, opacity: 0.95 }}>
+					{message}
+				</div>
+			)}
+
 			{/* ===== BORROW TABLE ===== */}
 			<table
 				style={{
@@ -226,7 +251,7 @@ export default function BorrowTable() {
 				<thead>
 					<tr>
 						<th style={{ ...th, width: "33.33%" }}>No</th>
-						<th style={{ ...th, width: "33.33%", textAlign: "left" }}>Tools</th>
+						<th style={{ ...th, width: "33.33%", textAlign: "left" }}>Items</th>
 						<th style={{ ...th, width: "33.33%" }}>Qty</th>
 					</tr>
 				</thead>
@@ -249,7 +274,7 @@ export default function BorrowTable() {
 							>
 								<td style={td}>{i + 1}</td>
 								<td style={{ ...td, textAlign: "left" }}>
-									{item.tools}
+									{item.item_name}
 								</td>
 								<td style={td}>
 									<input
@@ -284,7 +309,7 @@ export default function BorrowTable() {
 						<h3>Select Items</h3>
 
 						<input
-							placeholder="Search tools..."
+							placeholder="Search items..."
 							value={search}
 							onChange={e => setSearch(e.target.value)}
 							style={{ width: "100%", padding: "6px", marginBottom: "10px", color: "black", background: "#fff" }}
@@ -296,7 +321,7 @@ export default function BorrowTable() {
 									<tr>
 										<th style={{ ...th, width: "5%" }}></th>
 										<th style={{ ...th, width: "90%", textAlign: "left" }}>
-											Tools
+											Item
 										</th>
 										<th style={{ ...th, width: "5%" }}>Avail</th>
 									</tr>
@@ -314,7 +339,7 @@ export default function BorrowTable() {
 										</tr>
 									) : (
 										filteredInventory.map(item => {
-											const available = item.endInventory ?? item.qty ?? 0;
+											const available = item.quantity ?? 0;
 											const selected = items.find(i => i.id === item.id);
 
 											return (
@@ -329,7 +354,7 @@ export default function BorrowTable() {
 													</td>
 
 													<td style={{ ...td, textAlign: "left" }}>
-														{item.tools}
+														{item.item_name}
 													</td>
 
 													<td style={td}>

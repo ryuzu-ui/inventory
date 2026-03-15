@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AddItemModal from "./AddItemModal";
 import * as XLSX from "xlsx";
+import { createItem, updateItem, deleteItem } from "../../helper/api";
 
 
 /* TABLE STYLES */
@@ -66,29 +67,40 @@ export default function InventoryTable({ items = [], setItems }) {
 	const [selectedIds, setSelectedIds] = useState([]);
 
 	/* CREATE / UPDATE */
-	const saveItem = (data) => {
-		const updated = editingItem
-			? items.map(i =>
-				i.id === editingItem.id ? { ...i, ...data } : i
-			)
-			: [...items, { ...data, id: Date.now() }];
+	const saveItem = async (data) => {
+		try {
+			if (editingItem?.id) {
+				const updatedRow = await updateItem(editingItem.id, data);
+				setItems(items.map(i => (i.id === editingItem.id ? updatedRow : i)));
+			} else {
+				const created = await createItem(data);
+				setItems([created, ...items]);
+			}
 
-		setItems(updated);
-		localStorage.setItem("inventory", JSON.stringify(updated));
-
-		setShowModal(false);
-		setEditingItem(null);
+			setShowModal(false);
+			setEditingItem(null);
+		} catch (e) {
+			console.error("saveItem error:", e);
+			alert(e.message || "Failed to save item");
+		}
 	};
 
 	/* DELETE */
-	const deleteItem = () => {
+	const deleteSelectedItems = async () => {
 		if (selectedIds.length === 0) return;
 		if (!window.confirm(`Delete ${selectedIds.length} item(s)?`)) return;
 
-		const updated = items.filter(i => !selectedIds.includes(i.id));
-		setItems(updated);
-		localStorage.setItem("inventory", JSON.stringify(updated));
-		setSelectedIds([]);
+		try {
+			for (const id of selectedIds) {
+				await deleteItem(id);
+			}
+			setItems(items.filter(i => !selectedIds.includes(i.id)));
+			setSelectedIds([]);
+			setSelectedItem(null);
+		} catch (e) {
+			console.error("deleteItem error:", e);
+			alert(e.message || "Failed to delete item(s)");
+		}
 	};
 
 
@@ -104,9 +116,14 @@ const isSelected = (id) => selectedIds.includes(id);
 
 
 	/* SEARCH FILTER */
-	const filteredItems = items.filter(i =>
-		i.tools?.toLowerCase().includes(search.toLowerCase())
-	);
+	const filteredItems = items.filter(i => {
+		const s = search.toLowerCase();
+		return (
+			String(i.item_name || "").toLowerCase().includes(s) ||
+			String(i.item_code || "").toLowerCase().includes(s) ||
+			String(i.category || "").toLowerCase().includes(s)
+		);
+	});
 
 	const handleImportXLSX = (e) => {
 		const file = e.target.files[0];
@@ -125,40 +142,27 @@ const isSelected = (id) => selectedIds.includes(id);
 			// Convert to JSON
 			const rows = XLSX.utils.sheet_to_json(sheet);
 
-			const existingToolNames = items.map(i =>
-				i.tools?.toLowerCase().trim()
+			const existingCodes = items.map(i =>
+				String(i.item_code || "").toLowerCase().trim()
 			);
 
 
 			const importedItems = [];
 
 			rows.forEach(row => {
-				const toolName = row.tools?.toLowerCase().trim();
-				if (!toolName) return;
+				const code = String(row.item_code ?? row.code ?? row.itemCode ?? "").trim();
+				const name = String(row.item_name ?? row.name ?? row.itemName ?? "").trim();
+				if (!code || !name) return;
 
-				if (existingToolNames.includes(toolName)) {
+				if (existingCodes.includes(code.toLowerCase())) {
 					return; // skip duplicate
 				}
 
 				importedItems.push({
-					id: Date.now() + Math.random(),
-					tools: row.tools,
-					particular: row.particular || "",
-					purchaseDate: row.purchaseDate || "",
-					qty: Number(row.qty) || 0,
-					borrowed: Number(row.borrowed) || 0,
-					additionalQty: Number(row.additionalQty) || 0,
-					lifeSpan: row.lifeSpan || "",
-					replaced: Number(row.replaced) || 0,
-					totalInventory: Number(row.totalInventory) || 0,
-					missing: Number(row.missing) || 0,
-					breakage: Number(row.breakage) || 0,
-					defective: Number(row.defective) || 0,
-					totalLoss: Number(row.totalLoss) || 0,
-					endInventory: Number(row.endInventory) || 0,
-					ched: Number(row.ched) || 0,
-					tesda: Number(row.tesda) || 0,
-					deped: Number(row.deped) || 0
+					item_code: code,
+					item_name: name,
+					category: String(row.category ?? "").trim() || "",
+					quantity: Number(row.quantity ?? row.qty ?? 0) || 0,
 				});
 			});
 
@@ -168,9 +172,14 @@ const isSelected = (id) => selectedIds.includes(id);
 				return;
 			}
 
-			const updated = [...items, ...importedItems];
-			setItems(updated);
-			localStorage.setItem("inventory", JSON.stringify(updated));
+			Promise.all(importedItems.map((it) => createItem(it)))
+				.then((createdRows) => {
+					setItems([...createdRows, ...items]);
+				})
+				.catch((e) => {
+					console.error("Import createItem error:", e);
+					alert(e.message || "Failed to import items");
+				});
 
 		};
 
@@ -225,7 +234,7 @@ const isSelected = (id) => selectedIds.includes(id);
 
 					<button
 						disabled={!selectedItem}
-						onClick={deleteItem}
+						onClick={deleteSelectedItems}
 						style={dangerBtn(!selectedItem)}
 					>
 						Delete
@@ -246,18 +255,16 @@ const isSelected = (id) => selectedIds.includes(id);
 				<thead>
 					<tr>
 						<th style={th}>Select</th>
-						{[
-							"No","Tools","Particular","Date","Qty","Borrowed","Add Qty","Life Span",
-							"Replaced","Total","Missing","Breakage","Defective",
-							"Total Loss","End","CHED","TESDA","DEPED"
-						].map(h => <th key={h} style={th}>{h}</th>)}
+						{["No", "Item Code", "Item Name", "Category", "Quantity"].map(h => (
+							<th key={h} style={th}>{h}</th>
+						))}
 					</tr>
 				</thead>
 
 				<tbody>
 					{filteredItems.length === 0 ? (
 						<tr>
-							<td colSpan="17" style={{ padding: "15px", textAlign: "center" }}>
+							<td colSpan="6" style={{ padding: "15px", textAlign: "center" }}>
 								No items found
 							</td>
 							
@@ -291,23 +298,10 @@ const isSelected = (id) => selectedIds.includes(id);
 								</td>
 
 								<td style={td}>{i + 1}</td>
-								<td style={td}>{item.tools}</td>
-								<td style={td}>{item.particular}</td>
-								<td style={td}>{item.purchaseDate}</td>
-								<td style={td}>{item.qty}</td>
-								<td style={td}>{item.borrowed || 0}</td>
-								<td style={td}>{item.additionalQty}</td>
-								<td style={td}>{item.lifeSpan}</td>
-								<td style={td}>{item.replaced}</td>
-								<td style={td}>{item.totalInventory}</td>
-								<td style={td}>{item.missing}</td>
-								<td style={td}>{item.breakage}</td>
-								<td style={td}>{item.defective}</td>
-								<td style={td}>{item.totalLoss}</td>
-								<td style={td}>{item.endInventory}</td>
-								<td style={td}>{item.ched}</td>
-								<td style={td}>{item.tesda}</td>
-								<td style={td}>{item.deped}</td>
+								<td style={td}>{item.item_code}</td>
+								<td style={td}>{item.item_name}</td>
+								<td style={td}>{item.category}</td>
+								<td style={td}>{item.quantity}</td>
 								
 							</tr>
 						))

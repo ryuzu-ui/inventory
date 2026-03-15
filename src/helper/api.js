@@ -146,3 +146,113 @@ export async function getAdminRoomReservations({ status } = {}) {
   if (!ok) throw new Error(data?.error || "Failed to fetch reservations list");
   return Array.isArray(data) ? data : [];
 }
+
+// --------------------
+// INVENTORY (ITEMS)
+// --------------------
+export async function getItems({ q, category } = {}) {
+  const params = new URLSearchParams();
+  if (q) params.set("q", String(q));
+  if (category) params.set("category", String(category));
+
+  const url = params.toString() ? `${API_BASE}/api/items?${params}` : `${API_BASE}/api/items`;
+
+  const res = await fetch(url);
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to load items");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function createItem({ item_code, item_name, category, quantity }) {
+  const res = await fetch(`${API_BASE}/api/items`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ item_code, item_name, category, quantity }),
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to create item");
+  return data;
+}
+
+export async function updateItem(id, { item_code, item_name, category, quantity }) {
+  const res = await fetch(`${API_BASE}/api/items/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ item_code, item_name, category, quantity }),
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to update item");
+  return data;
+}
+
+export async function deleteItem(id) {
+  const res = await fetch(`${API_BASE}/api/items/${id}`, {
+    method: "DELETE",
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to delete item");
+  return data;
+}
+
+// --------------------
+// BORROW REQUESTS
+// --------------------
+export async function createBorrowRequest({ student_id, borrow_date, return_date, items }) {
+  const res = await fetch(`${API_BASE}/api/borrow-requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ student_id, borrow_date, return_date, items }),
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to create borrow request");
+  return data;
+}
+
+export async function getBorrowRequests({ student_id } = {}) {
+  const params = new URLSearchParams();
+  if (student_id) params.set("student_id", String(student_id));
+
+  const url = params.toString()
+    ? `${API_BASE}/api/borrow-requests?${params}`
+    : `${API_BASE}/api/borrow-requests`;
+
+  const res = await fetch(url);
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to load borrow requests");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getBorrowRequestItems(id) {
+  const res = await fetch(`${API_BASE}/api/borrow-requests/${id}/items`);
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to load borrow request items");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function setBorrowRequestStatus(id, { status, user_id }) {
+  const res = await fetch(`${API_BASE}/api/borrow-requests/${id}/status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status, user_id }),
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to update borrow request status");
+  return data;
+}
+
+export async function returnBorrowRequest(id, { user_id, condition_notes }) {
+  const res = await fetch(`${API_BASE}/api/borrow-requests/${id}/return`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ user_id, condition_notes }),
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to mark returned");
+  return data;
+}

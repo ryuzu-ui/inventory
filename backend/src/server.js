@@ -451,5 +451,534 @@ app.get("/api/admin/room-reservations", async (req, res) => {
   }
 });
 
+// --------------------
+// ✅ INVENTORY + BORROWING
+// --------------------
+
+// List items (shared: admin + student)
+app.get("/api/items", async (req, res) => {
+  try {
+    const q = req.query.q ? String(req.query.q).trim() : "";
+    const category = req.query.category ? String(req.query.category).trim() : "";
+
+    const result = await pool.query(
+      `
+      SELECT id, item_code, item_name, category, quantity, created_at
+      FROM public.items
+      WHERE ($1::text = '' OR item_name ILIKE '%' || $1 || '%' OR item_code ILIKE '%' || $1 || '%')
+        AND ($2::text = '' OR category = $2::text)
+      ORDER BY created_at DESC, id DESC
+      LIMIT 500
+      `,
+      [q, category]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Items list error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to load items" });
+  }
+});
+
+// Admin: create item
+app.post("/api/items", async (req, res) => {
+  try {
+    const { item_code, item_name, category, quantity } = req.body;
+
+    if (!item_code || !item_name) {
+      return res
+        .status(400)
+        .json({ error: "item_code and item_name are required" });
+    }
+
+    const qtyNum = Number(quantity ?? 0);
+    if (!Number.isFinite(qtyNum) || qtyNum < 0) {
+      return res.status(400).json({ error: "quantity must be >= 0" });
+    }
+
+    const inserted = await pool.query(
+      `
+      INSERT INTO public.items (item_code, item_name, category, quantity)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, item_code, item_name, category, quantity, created_at
+      `,
+      [String(item_code).trim(), String(item_name).trim(), category || null, qtyNum]
+    );
+
+    res.status(201).json(inserted.rows[0]);
+  } catch (err) {
+    console.error("Create item error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to create item" });
+  }
+});
+
+// Admin: update item
+app.put("/api/items/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { item_code, item_name, category, quantity } = req.body;
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid item id" });
+    }
+
+    const qtyNum = quantity === undefined ? undefined : Number(quantity);
+    if (qtyNum !== undefined && (!Number.isFinite(qtyNum) || qtyNum < 0)) {
+      return res.status(400).json({ error: "quantity must be >= 0" });
+    }
+
+    const updated = await pool.query(
+      `
+      UPDATE public.items
+      SET
+        item_code = COALESCE($2::text, item_code),
+        item_name = COALESCE($3::text, item_name),
+        category  = COALESCE($4::text, category),
+        quantity  = COALESCE($5::int, quantity)
+      WHERE id = $1
+      RETURNING id, item_code, item_name, category, quantity, created_at
+      `,
+      [
+        id,
+        item_code === undefined ? null : String(item_code).trim(),
+        item_name === undefined ? null : String(item_name).trim(),
+        category === undefined ? null : category,
+        qtyNum === undefined ? null : qtyNum,
+      ]
+    );
+
+    if (updated.rows.length === 0) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    res.json(updated.rows[0]);
+  } catch (err) {
+    console.error("Update item error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to update item" });
+  }
+});
+
+// Admin: delete item
+app.delete("/api/items/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid item id" });
+    }
+
+    const deleted = await pool.query(
+      `DELETE FROM public.items WHERE id = $1 RETURNING id`,
+      [id]
+    );
+
+    if (deleted.rows.length === 0) {
+      return res.status(404).json({ error: "Item not found" });
+    }
+
+    res.json({ ok: true, id });
+  } catch (err) {
+    console.error("Delete item error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to delete item" });
+  }
+});
+
+// Student: create borrow request (status=pending)
+// Body: { student_id, borrow_date?, return_date?, items: [{item_id, quantity}] }
+app.post("/api/borrow-requests", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { student_id, borrow_date, return_date, items } = req.body;
+
+    const studentIdNum = Number(student_id);
+    if (!Number.isInteger(studentIdNum) || studentIdNum <= 0) {
+      return res.status(400).json({ error: "student_id must be a valid integer" });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "items is required" });
+    }
+
+    const normalizedItems = items
+      .map((it) => ({
+        item_id: Number(it.item_id),
+        quantity: Number(it.quantity),
+      }))
+      .filter((it) => Number.isInteger(it.item_id) && it.item_id > 0);
+
+    if (normalizedItems.length === 0) {
+      return res.status(400).json({ error: "items must include valid item_id" });
+    }
+
+    for (const it of normalizedItems) {
+      if (!Number.isFinite(it.quantity) || it.quantity <= 0) {
+        return res
+          .status(400)
+          .json({ error: "Each item quantity must be > 0" });
+      }
+    }
+
+    await client.query("BEGIN");
+
+    // Validate items exist and (soft) check availability at request time
+    // Note: quantity is decremented on approval, not on request create.
+    const itemIds = normalizedItems.map((x) => x.item_id);
+    const existing = await client.query(
+      `SELECT id, quantity FROM public.items WHERE id = ANY($1::int[])`,
+      [itemIds]
+    );
+    const byId = new Map(existing.rows.map((r) => [r.id, r]));
+
+    for (const it of normalizedItems) {
+      const row = byId.get(it.item_id);
+      if (!row) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: `Item not found: ${it.item_id}` });
+      }
+      if (it.quantity > Number(row.quantity || 0)) {
+        await client.query("ROLLBACK");
+        return res
+          .status(409)
+          .json({ error: `Not enough stock for item ${it.item_id}` });
+      }
+    }
+
+    const insertedReq = await client.query(
+      `
+      INSERT INTO public.borrow_requests (student_id, status, borrow_date, return_date)
+      VALUES ($1, 'pending', COALESCE($2::date, CURRENT_DATE), $3::date)
+      RETURNING id, student_id, status, borrow_date, return_date, created_at
+      `,
+      [studentIdNum, borrow_date || null, return_date || null]
+    );
+
+    const borrowRequestId = insertedReq.rows[0].id;
+
+    for (const it of normalizedItems) {
+      await client.query(
+        `
+        INSERT INTO public.borrow_items (borrow_request_id, item_id, quantity)
+        VALUES ($1, $2, $3)
+        `,
+        [borrowRequestId, it.item_id, it.quantity]
+      );
+    }
+
+    await client.query(
+      `
+      INSERT INTO public.inventory_logs (user_id, action, item_id, quantity, action_date)
+      SELECT $1::int, 'borrow_request_created', bi.item_id, bi.quantity, NOW()
+      FROM public.borrow_items bi
+      WHERE bi.borrow_request_id = $2
+      `,
+      [studentIdNum, borrowRequestId]
+    );
+
+    await client.query("COMMIT");
+
+    res.status(201).json({
+      ...insertedReq.rows[0],
+      items: normalizedItems,
+    });
+  } catch (err) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // ignore
+    }
+    console.error("Create borrow request error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to create borrow request" });
+  } finally {
+    client.release();
+  }
+});
+
+// Student/Admin: list borrow requests (optional filter by student_id)
+app.get("/api/borrow-requests", async (req, res) => {
+  try {
+    const studentId = req.query.student_id ? Number(req.query.student_id) : null;
+    if (studentId !== null && (!Number.isInteger(studentId) || studentId <= 0)) {
+      return res.status(400).json({ error: "Invalid student_id" });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT id, student_id, status, borrow_date, return_date, created_at
+      FROM public.borrow_requests
+      WHERE ($1::int IS NULL OR student_id = $1::int)
+      ORDER BY created_at DESC, id DESC
+      LIMIT 200
+      `,
+      [studentId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Borrow requests list error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to load borrow requests" });
+  }
+});
+
+// Borrow request items (join borrow_items -> items)
+app.get("/api/borrow-requests/:id/items", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid borrow request id" });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        bi.id,
+        bi.borrow_request_id,
+        bi.item_id,
+        bi.quantity,
+        i.item_code,
+        i.item_name,
+        i.category
+      FROM public.borrow_items bi
+      JOIN public.items i ON bi.item_id = i.id
+      WHERE bi.borrow_request_id = $1
+      ORDER BY bi.id
+      `,
+      [id]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Borrow request items error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to load borrow request items" });
+  }
+});
+
+// Admin: approve/reject a borrow request
+// Body: { status: 'approved' | 'rejected', user_id }
+// On approval: decrement items.quantity and log it.
+app.patch("/api/borrow-requests/:id/status", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const id = Number(req.params.id);
+    const { status, user_id } = req.body;
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid borrow request id" });
+    }
+
+    const statusLower = String(status || "").toLowerCase();
+    if (!['approved', 'rejected'].includes(statusLower)) {
+      return res.status(400).json({ error: "Invalid status" });
+    }
+
+    const actorId = Number(user_id);
+    if (!Number.isInteger(actorId) || actorId <= 0) {
+      return res.status(400).json({ error: "user_id is required" });
+    }
+
+    await client.query("BEGIN");
+
+    const reqRow = await client.query(
+      `SELECT id, status FROM public.borrow_requests WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    if (reqRow.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Borrow request not found" });
+    }
+
+    const currentStatus = String(reqRow.rows[0].status || '').toLowerCase();
+    if (currentStatus !== 'pending') {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: `Cannot update status from ${currentStatus}` });
+    }
+
+    if (statusLower === 'approved') {
+      // Load requested items
+      const itemsRes = await client.query(
+        `SELECT item_id, quantity FROM public.borrow_items WHERE borrow_request_id = $1`,
+        [id]
+      );
+
+      if (itemsRes.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ error: "Borrow request has no items" });
+      }
+
+      // Lock items and validate availability
+      const itemIds = itemsRes.rows.map((r) => r.item_id);
+      const locked = await client.query(
+        `SELECT id, quantity FROM public.items WHERE id = ANY($1::int[]) FOR UPDATE`,
+        [itemIds]
+      );
+      const byId = new Map(locked.rows.map((r) => [r.id, r]));
+
+      for (const r of itemsRes.rows) {
+        const row = byId.get(r.item_id);
+        if (!row) {
+          await client.query("ROLLBACK");
+          return res.status(404).json({ error: `Item not found: ${r.item_id}` });
+        }
+        if (Number(r.quantity) > Number(row.quantity || 0)) {
+          await client.query("ROLLBACK");
+          return res
+            .status(409)
+            .json({ error: `Not enough stock for item ${r.item_id}` });
+        }
+      }
+
+      // Decrement quantities
+      for (const r of itemsRes.rows) {
+        await client.query(
+          `UPDATE public.items SET quantity = quantity - $2 WHERE id = $1`,
+          [r.item_id, Number(r.quantity)]
+        );
+      }
+
+      await client.query(
+        `
+        INSERT INTO public.inventory_logs (user_id, action, item_id, quantity, action_date)
+        SELECT $1::int, 'borrow_approved', bi.item_id, bi.quantity, NOW()
+        FROM public.borrow_items bi
+        WHERE bi.borrow_request_id = $2
+        `,
+        [actorId, id]
+      );
+    } else {
+      await client.query(
+        `
+        INSERT INTO public.inventory_logs (user_id, action, item_id, quantity, action_date)
+        SELECT $1::int, 'borrow_rejected', bi.item_id, bi.quantity, NOW()
+        FROM public.borrow_items bi
+        WHERE bi.borrow_request_id = $2
+        `,
+        [actorId, id]
+      );
+    }
+
+    const updated = await client.query(
+      `
+      UPDATE public.borrow_requests
+      SET status = $2
+      WHERE id = $1
+      RETURNING id, student_id, status, borrow_date, return_date, created_at
+      `,
+      [id, statusLower]
+    );
+
+    await client.query("COMMIT");
+    res.json(updated.rows[0]);
+  } catch (err) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // ignore
+    }
+    console.error("Update borrow request status error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to update borrow request status" });
+  } finally {
+    client.release();
+  }
+});
+
+// Admin: mark returned
+// Body: { user_id, condition_notes? }
+// Behavior: increments item quantities back, inserts into returns, sets borrow_requests.status='returned'
+app.post("/api/borrow-requests/:id/return", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const id = Number(req.params.id);
+    const { user_id, condition_notes } = req.body;
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid borrow request id" });
+    }
+
+    const actorId = Number(user_id);
+    if (!Number.isInteger(actorId) || actorId <= 0) {
+      return res.status(400).json({ error: "user_id is required" });
+    }
+
+    await client.query("BEGIN");
+
+    const reqRow = await client.query(
+      `SELECT id, status FROM public.borrow_requests WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    if (reqRow.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Borrow request not found" });
+    }
+
+    const currentStatus = String(reqRow.rows[0].status || '').toLowerCase();
+    if (currentStatus !== 'approved') {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: `Only approved requests can be returned (current: ${currentStatus})` });
+    }
+
+    const itemsRes = await client.query(
+      `SELECT item_id, quantity FROM public.borrow_items WHERE borrow_request_id = $1`,
+      [id]
+    );
+    if (itemsRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Borrow request has no items" });
+    }
+
+    const itemIds = itemsRes.rows.map((r) => r.item_id);
+    await client.query(
+      `SELECT id FROM public.items WHERE id = ANY($1::int[]) FOR UPDATE`,
+      [itemIds]
+    );
+
+    for (const r of itemsRes.rows) {
+      await client.query(
+        `UPDATE public.items SET quantity = quantity + $2 WHERE id = $1`,
+        [r.item_id, Number(r.quantity)]
+      );
+    }
+
+    await client.query(
+      `
+      INSERT INTO public.returns (borrow_request_id, returned_at, condition_notes)
+      VALUES ($1, NOW(), $2)
+      `,
+      [id, condition_notes || null]
+    );
+
+    await client.query(
+      `
+      INSERT INTO public.inventory_logs (user_id, action, item_id, quantity, action_date)
+      SELECT $1::int, 'borrow_returned', bi.item_id, bi.quantity, NOW()
+      FROM public.borrow_items bi
+      WHERE bi.borrow_request_id = $2
+      `,
+      [actorId, id]
+    );
+
+    const updated = await client.query(
+      `
+      UPDATE public.borrow_requests
+      SET status = 'returned'
+      WHERE id = $1
+      RETURNING id, student_id, status, borrow_date, return_date, created_at
+      `,
+      [id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ ok: true, request: updated.rows[0] });
+  } catch (err) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // ignore
+    }
+    console.error("Return borrow request error:", err.message, err.code);
+    res.status(500).json({ error: "Failed to mark returned" });
+  } finally {
+    client.release();
+  }
+});
+
 const port = Number(process.env.PORT) || 5000;
 app.listen(port, () => console.log(`API running on http://localhost:${port}`));

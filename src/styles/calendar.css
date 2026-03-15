@@ -94,3 +94,40 @@
 .fc .fc-daygrid-day-frame {
   padding: 2px;
 }
+
+/* Popover (e.g. clicking "+ more") */
+.fc .fc-popover {
+  background: #101214 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.fc .fc-popover-header {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+}
+
+.fc .fc-popover-title,
+.fc .fc-popover-body {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.fc .fc-popover-close {
+  color: rgba(255, 255, 255, 0.90) !important;
+}
+
+.fc .fc-popover a,
+.fc .fc-popover a:visited {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.fc .fc-popover .fc-event,
+.fc .fc-popover .fc-daygrid-event {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.fc .fc-popover .fc-event-title,
+.fc .fc-popover .fc-event-time {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
