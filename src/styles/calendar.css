@@ -131,3 +131,34 @@
 .fc .fc-popover .fc-event-time {
   color: rgba(255, 255, 255, 0.95) !important;
 }
+
+.reserved-day {
+  background: rgba(46, 204, 113, 0.25) !important;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.reserved-day:hover {
+  background: rgba(46, 204, 113, 0.45) !important;
+  cursor: pointer;
+}
+
+.modalOverlay{
+	position:fixed;
+	top:0;
+	left:0;
+	right:0;
+	bottom:0;
+	background:rgba(0,0,0,0.6);
+	display:flex;
+	align-items:center;
+	justify-content:center;
+	z-index:999;
+}
+
+.modalBox{
+	background:#1b1f24;
+	padding:30px;
+	border-radius:15px;
+	width:350px;
+}

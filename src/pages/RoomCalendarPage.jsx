@@ -5,16 +5,17 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { useEffect, useMemo, useState } from "react";
 import { getUser } from "../components/services/authService";
 import "../styles/calendar.css";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
 
 import {
   getLabRooms,
   getEvents,
   getRoomReservationsByDate,
   createReservation,
-  updateReservationStatus, // ✅ NEW
+  updateReservationStatus,
 } from "../helper/api";
 
-// format Date -> YYYY-MM-DD (local)
 function toYMD(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -23,428 +24,523 @@ function toYMD(d) {
 }
 
 export default function RoomCalendarPage() {
+
   const user = getUser();
   const isAdmin = String(user?.role || "").toLowerCase() === "admin";
 
-  // rooms
-  const [rooms, setRooms] = useState([]);
-  const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [reserveModalOpen, setReserveModalOpen] = useState(false);
 
-  // calendar
+  const [miniDate, setMiniDate] = useState(new Date());
+
+  // ROOMS
+  const [rooms, setRooms] = useState([]);
+  const [selectedRooms, setSelectedRooms] = useState([]);
+
+  const [reservedDates, setReservedDates] = useState([]);
+
+  // CALENDAR
   const [events, setEvents] = useState([]);
   const [range, setRange] = useState({ start: null, end: null });
 
-  // side panel
+  // SIDE PANEL
   const [panelOpen, setPanelOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null); // YYYY-MM-DD
+  const [selectedDate, setSelectedDate] = useState(null);
   const [dayReservations, setDayReservations] = useState([]);
   const [loadingDay, setLoadingDay] = useState(false);
 
-  // reserve form
+  // RESERVE FORM
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("11:00");
   const [message, setMessage] = useState("");
 
-  // =========================
-  // LOAD ROOMS
-  // =========================
-  useEffect(() => {
-    (async () => {
-      try {
-        setMessage("");
-        const data = await getLabRooms();
-        setRooms(Array.isArray(data) ? data : []);
 
-        if (Array.isArray(data) && data.length && selectedRoomId === null) {
-          setSelectedRoomId(data[0].id);
+
+  // LOAD ROOMS
+  useEffect(() => {
+
+    (async () => {
+
+      try {
+
+        const data = await getLabRooms();
+
+        setRooms(data || []);
+
+        if (Array.isArray(data)) {
+          setSelectedRooms(data.map(r => r.id)); // auto select all
         }
+
       } catch (e) {
-        console.error("getLabRooms error:", e);
-        setRooms([]);
-        setMessage(e.message || "Failed to load rooms.");
+
+        console.error(e);
+
       }
+
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, []);
 
-  // =========================
-  // LOAD EVENTS (approved only)
-  // =========================
+
+
+  // LOAD EVENTS
   useEffect(() => {
+
     if (!range.start || !range.end) return;
 
     (async () => {
+
       try {
+
         const data = await getEvents({
           start: range.start,
           end: range.end,
-          roomId: selectedRoomId,
+          roomIds: selectedRooms.length ? selectedRooms : null
         });
-        setEvents(Array.isArray(data) ? data : []);
-      } catch (e) {
-        console.error("getEvents error:", e);
-        setEvents([]);
-      }
-    })();
-  }, [range, selectedRoomId]);
 
-  // =========================
-  // LOAD DAY RESERVATIONS (includes pending/approved/etc)
-  // =========================
-  const loadDayReservations = async (roomId, dateStr) => {
-    if (!roomId || !dateStr) return;
+        setEvents(data || []);
+
+        if (Array.isArray(data)) {
+
+          const dates = [...new Set(data.map(e => e.start.slice(0,10)))];
+          setReservedDates(dates);
+
+        }
+
+      } catch (e) {
+
+        console.error(e);
+
+      }
+
+    })();
+
+  }, [range, selectedRooms]);
+
+
+
+  const loadDayReservations = async (dateStr) => {
+
+    if (!dateStr) return;
+
     setLoadingDay(true);
-    setMessage("");
 
     try {
+
       const data = await getRoomReservationsByDate({
-        roomId,
-        date: dateStr,
+        date: dateStr
       });
-      setDayReservations(Array.isArray(data) ? data : []);
+
+      setDayReservations(data || []);
+
     } catch (e) {
-      console.error("getRoomReservationsByDate error:", e);
-      setDayReservations([]);
-      setMessage(e.message || "Failed to load reservations.");
+
+      console.error(e);
+
     } finally {
+
       setLoadingDay(false);
+
     }
+
   };
 
-  // reload side panel when room changes
-  useEffect(() => {
-    if (panelOpen && selectedRoomId && selectedDate) {
-      loadDayReservations(selectedRoomId, selectedDate);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRoomId]);
 
-  // =========================
-  // ADMIN: APPROVE / REJECT
-  // =========================
+
   const handleSetStatus = async (reservationId, status) => {
+
     if (!isAdmin) return;
 
     try {
-      setMessage("");
+
       await updateReservationStatus({ id: reservationId, status });
 
-      setMessage(`✅ Reservation ${status}.`);
-      await loadDayReservations(selectedRoomId, selectedDate);
+      setMessage(`Reservation ${status}`);
 
-      // refresh calendar (approved events)
-      setRange((r) => ({ ...r }));
+      await loadDayReservations(selectedDate);
+
+      setRange(r => ({ ...r }));
+
     } catch (e) {
-      console.error("updateReservationStatus error:", e);
-      setMessage(e.message || "Failed to update status.");
+
+      console.error(e);
+
     }
+
   };
 
-  // =========================
-  // SUBMIT RESERVATION (PENDING)
-  // =========================
+
+
   const submitReservation = async () => {
+
     setMessage("");
 
-    if (!selectedRoomId) return setMessage("Please select a room.");
-    if (!selectedDate) return setMessage("Please click a date on the calendar.");
-    if (!startTime || !endTime) return setMessage("Start and end time are required.");
-    if (startTime >= endTime) return setMessage("Start time must be before end time.");
+    if (!selectedDate) return setMessage("Please select a date.");
+    if (!startTime || !endTime) return setMessage("Time required.");
+    if (startTime >= endTime) return setMessage("Start must be before end.");
 
-    // ✅ Require login + require numeric DB id
+    if (!selectedRooms.length)
+      return setMessage("Please select a room.");
+
     const reservedBy = Number(user?.id);
-    if (!Number.isInteger(reservedBy) || reservedBy <= 0) {
-      return setMessage("You must be logged in to reserve a room.");
-    }
+    if (!reservedBy)
+      return setMessage("Login required.");
+
+    const roomId = selectedRooms[0]; // first checked room
 
     try {
+
       await createReservation({
-        roomId: selectedRoomId,
+        roomId,
         reserved_by: reservedBy,
         reservation_date: selectedDate,
         start_time: startTime,
         end_time: endTime,
       });
 
-      setMessage("✅ Reservation submitted (pending approval).");
-      await loadDayReservations(selectedRoomId, selectedDate);
+      setMessage("✅ Reservation submitted.");
 
-      // Refresh events (approved only)
+      await loadDayReservations(selectedDate);
+
       setRange((r) => ({ ...r }));
+
     } catch (e) {
-      console.error("createReservation error:", e);
-      setMessage(e.message || "Reservation failed.");
+
+      console.error(e);
+
+      setMessage("Reservation failed.");
+
     }
+
   };
 
-  // Safe room name lookup
-  const selectedRoomName = useMemo(() => {
-    const r = rooms.find((x) => x.id === selectedRoomId);
-    return r?.room_name || "";
-  }, [rooms, selectedRoomId]);
 
-  const pendingCount = useMemo(
-    () => dayReservations.filter((r) => String(r.status).toLowerCase() === "pending").length,
-    [dayReservations]
-  );
+
+  const pendingCount = useMemo(() => {
+
+    return dayReservations.filter(r =>
+      String(r.status).toLowerCase() === "pending"
+    ).length;
+
+  }, [dayReservations]);
+
+
 
   return (
+
     <div style={{ padding: 20 }}>
-      {/* Header row */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-          marginBottom: 12,
-        }}
-      >
-        <h2 style={{ margin: 0 }}>Lab Room Reservations</h2>
 
-        {/* Room filter */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ opacity: 0.85 }}>Room:</span>
-          <select
-            value={selectedRoomId ?? ""}
-            onChange={(e) => setSelectedRoomId(Number(e.target.value))}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 12,
-              background: "#1b1f24",
-              color: "white",
-              border: "1px solid rgba(255,255,255,0.15)",
-              fontWeight: 700,
-            }}
-          >
-            {rooms.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.room_name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <h2>Lab Room Reservations</h2>
 
-      {/* Layout */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: panelOpen ? "1fr 360px" : "1fr",
-          gap: 14,
-          alignItems: "start",
+          gridTemplateColumns: "260px 1fr",
+          gap: 16,
+          height: "80vh"
         }}
       >
-        {/* Calendar */}
-        <div className="calendarShell">
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,timeGridWeek,timeGridDay",
+
+        {/* SIDEBAR */}
+        <div
+          style={{
+            background: "#101214",
+            padding: 16,
+            borderRadius: 14
+          }}
+        >
+
+          <Calendar
+            value={miniDate}
+            calendarType="gregory"
+
+            tileClassName={({ date }) => {
+
+              const d = toYMD(date);
+
+              if (reservedDates.includes(d)) {
+                return "reserved-day";
+              }
+
             }}
-            nowIndicator={true}
-            dayMaxEvents={true}
-            stickyHeaderDates={true}
-            eventDisplay="block"
-            events={events}
-            datesSet={(info) => {
-              setRange({ start: toYMD(info.start), end: toYMD(info.end) });
-            }}
-            dateClick={(arg) => {
-              setSelectedDate(arg.dateStr);
+
+            onChange={(date) => {
+
+              setMiniDate(date);
+
+              const ymd = toYMD(date);
+
+              setSelectedDate(ymd);
+
               setPanelOpen(true);
-              loadDayReservations(selectedRoomId, arg.dateStr);
+
+              loadDayReservations(ymd);
+
             }}
           />
-          <div style={{ opacity: 0.7, marginTop: 10, fontSize: 12 }}>
-            Tip: Click a date to view reservations and submit a booking request.
+
+          <h4 style={{ marginTop: 20 }}>My Calendars</h4>
+
+          <div style={{ display: "grid", gap: 8 }}>
+
+            {/* ALL ROOMS */}
+            <label style={{ display: "flex", gap: 8 }}>
+
+              <input
+                type="checkbox"
+                checked={selectedRooms.length === rooms.length}
+                onChange={(e) => {
+
+                  if (e.target.checked) {
+
+                    setSelectedRooms(rooms.map(r => r.id));
+
+                  } else {
+
+                    setSelectedRooms([]);
+
+                  }
+
+                }}
+              />
+
+              All Rooms
+
+            </label>
+
+            {rooms.map((r) => (
+
+              <label key={r.id} style={{ display: "flex", gap: 8 }}>
+
+                <input
+                  type="checkbox"
+                  checked={selectedRooms.includes(r.id)}
+
+                  onChange={(e) => {
+
+                    if (e.target.checked) {
+
+                      setSelectedRooms([...selectedRooms, r.id]);
+
+                    } else {
+
+                      setSelectedRooms(
+                        selectedRooms.filter(id => id !== r.id)
+                      );
+
+                    }
+
+                  }}
+                />
+
+                {r.room_name}
+
+              </label>
+
+            ))}
+
           </div>
+
         </div>
 
-        {/* Side panel */}
+
+
+        {/* MAIN CALENDAR */}
+        <div className="calendarShell">
+
+          <FullCalendar
+
+            plugins={[dayGridPlugin,timeGridPlugin,interactionPlugin]}
+
+            initialView="timeGridWeek"
+
+            height="100%"
+
+            headerToolbar={{
+              left:"prev,next today",
+              center:"title",
+              right:"timeGridWeek,timeGridDay,dayGridMonth"
+            }}
+
+            slotMinTime="07:00:00"
+            slotMaxTime="21:00:00"
+
+            nowIndicator={true}
+
+            allDaySlot={false}
+
+            events={events}
+
+            datesSet={(info) => {
+
+              setRange({
+                start: toYMD(info.start),
+                end: toYMD(info.end)
+              });
+
+            }}
+
+            dateClick={(arg) => {
+
+              setSelectedDate(arg.dateStr);
+              setReserveModalOpen(true);
+
+            }}
+
+          />
+
+        </div>
+
+
+
+        {/* SIDE PANEL */}
         {panelOpen && (
+
           <div
             style={{
-              background: "#101214",
-              borderRadius: 18,
-              padding: 16,
-              border: "1px solid rgba(255,255,255,0.10)",
-              position: "sticky",
-              top: 90,
+              background:"#101214",
+              borderRadius:18,
+              padding:16
             }}
           >
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+
               <div>
-                <div style={{ fontWeight: 900, fontSize: 16 }}>{selectedRoomName}</div>
-                <div style={{ opacity: 0.85, marginTop: 2 }}>{selectedDate}</div>
+
+                <div>{selectedDate}</div>
+
                 {isAdmin && (
-                  <div style={{ marginTop: 6, opacity: 0.9, fontWeight: 800, fontSize: 12 }}>
-                    Admin view • Pending: {pendingCount}
-                  </div>
+                  <div>Pending: {pendingCount}</div>
                 )}
+
               </div>
 
-              <button
-                onClick={() => setPanelOpen(false)}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  background: "rgba(255,255,255,0.06)",
-                  color: "white",
-                  cursor: "pointer",
-                  fontWeight: 800,
-                  height: 38,
-                }}
-              >
+              <button onClick={()=>setPanelOpen(false)}>
                 Close
               </button>
+
             </div>
 
-            <hr style={{ borderColor: "rgba(255,255,255,0.10)", margin: "14px 0" }} />
+            <hr/>
 
-            {/* Reservations list */}
-            <div style={{ fontWeight: 900, marginBottom: 10 }}>Reservations</div>
+            {loadingDay
+              ? "Loading..."
+              : dayReservations.map(r => (
 
-            {loadingDay ? (
-              <div style={{ opacity: 0.8 }}>Loading…</div>
-            ) : dayReservations.length === 0 ? (
-              <div style={{ opacity: 0.8 }}>No reservations for this day.</div>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {dayReservations.map((r) => {
-                  const statusLower = String(r.status || "").toLowerCase();
-                  const canApprove = isAdmin && statusLower === "pending";
+                <div key={r.id} style={{marginBottom:10}}>
 
-                  return (
-                    <div
-                      key={r.id}
-                      style={{
-                        padding: 10,
-                        borderRadius: 14,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(255,255,255,0.04)",
-                      }}
-                    >
-                      <div style={{ fontWeight: 900 }}>
-                        {String(r.start_time).slice(0, 5)} – {String(r.end_time).slice(0, 5)}
-                      </div>
+                  {r.start_time.slice(0,5)} - {r.end_time.slice(0,5)}
 
-                      <div style={{ opacity: 0.8, marginTop: 2 }}>
-                        Status: <span style={{ fontWeight: 800 }}>{r.status}</span>
-                      </div>
+                  <div>Status: {r.status}</div>
 
-                      {/* ✅ ADMIN BUTTONS */}
-                      {canApprove && (
-                        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                          <button
-                            onClick={() => handleSetStatus(r.id, "approved")}
-                            style={{
-                              flex: 1,
-                              padding: "9px 10px",
-                              borderRadius: 12,
-                              border: "1px solid rgba(255,255,255,0.14)",
-                              background: "rgba(46, 204, 113, 0.18)",
-                              color: "white",
-                              cursor: "pointer",
-                              fontWeight: 900,
-                            }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleSetStatus(r.id, "rejected")}
-                            style={{
-                              flex: 1,
-                              padding: "9px 10px",
-                              borderRadius: 12,
-                              border: "1px solid rgba(255,255,255,0.14)",
-                              background: "rgba(231, 76, 60, 0.18)",
-                              color: "white",
-                              cursor: "pointer",
-                              fontWeight: 900,
-                            }}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
+                  {isAdmin && r.status==="pending" && (
+
+                    <div style={{display:"flex",gap:8}}>
+
+                      <button
+                        onClick={()=>handleSetStatus(r.id,"approved")}
+                      >
+                        Approve
+                      </button>
+
+                      <button
+                        onClick={()=>handleSetStatus(r.id,"rejected")}
+                      >
+                        Reject
+                      </button>
+
                     </div>
-                  );
-                })}
-              </div>
-            )}
 
-            <hr style={{ borderColor: "rgba(255,255,255,0.10)", margin: "14px 0" }} />
+                  )}
 
-            {/* Reserve form (student + admin both can request, keep your behavior) */}
-            <div style={{ fontWeight: 900, marginBottom: 10 }}>Reserve a time</div>
+                </div>
 
-            <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ display: "grid", gap: 6 }}>
-                <label style={{ opacity: 0.85, fontWeight: 700 }}>Start time</label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  style={{
-                    padding: "10px 10px",
-                    borderRadius: 12,
-                    background: "#1b1f24",
-                    color: "white",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    fontWeight: 700,
-                  }}
-                />
-              </div>
+            ))}
 
-              <div style={{ display: "grid", gap: 6 }}>
-                <label style={{ opacity: 0.85, fontWeight: 700 }}>End time</label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  style={{
-                    padding: "10px 10px",
-                    borderRadius: 12,
-                    background: "#1b1f24",
-                    color: "white",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    fontWeight: 700,
-                  }}
-                />
-              </div>
+            <hr/>
 
-              <button
-                onClick={submitReservation}
-                style={{
-                  padding: "11px 12px",
-                  borderRadius: 14,
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  background: "rgba(255,255,255,0.10)",
-                  color: "white",
-                  cursor: "pointer",
-                  fontWeight: 900,
-                  letterSpacing: 0.2,
-                }}
-              >
-                Submit (Pending Approval)
+            <div>
+
+              <input
+                type="time"
+                value={startTime}
+                onChange={e=>setStartTime(e.target.value)}
+              />
+
+              <input
+                type="time"
+                value={endTime}
+                onChange={e=>setEndTime(e.target.value)}
+              />
+
+              <button onClick={submitReservation}>
+                Reserve
               </button>
 
-              {message && (
-                <div style={{ marginTop: 4, opacity: 0.95, fontWeight: 700 }}>
-                  {message}
-                </div>
-              )}
+              {message && <div>{message}</div>}
+
             </div>
+
           </div>
+
         )}
+
       </div>
+
+      {reserveModalOpen && (
+
+      <div className="modalOverlay">
+
+        <div className="modalBox">
+
+          <h3>Reserve Room</h3>
+
+          <div>Date: {selectedDate}</div>
+
+          <div style={{marginTop:10}}>
+
+            <label>Start</label>
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e)=>setStartTime(e.target.value)}
+            />
+
+          </div>
+
+          <div>
+
+            <label>End</label>
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e)=>setEndTime(e.target.value)}
+            />
+
+          </div>
+
+          <div style={{marginTop:20,display:"flex",gap:10}}>
+
+            <button onClick={()=>setReserveModalOpen(false)}>
+              Cancel
+            </button>
+
+            <button onClick={submitReservation}>
+              Confirm Reservation
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    )}
+
     </div>
+
   );
+
+  
+
 }
