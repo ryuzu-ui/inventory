@@ -681,13 +681,18 @@ app.post("/api/borrow-requests", async (req, res) => {
       items: normalizedItems,
     });
   } catch (err) {
+    console.error("Create borrow request error body:", req.body);
     try {
       await client.query("ROLLBACK");
     } catch {
       // ignore
     }
     console.error("Create borrow request error:", err.message, err.code);
-    res.status(500).json({ error: "Failed to create borrow request" });
+    res.status(500).json({
+      error: "Failed to create borrow request",
+      details: err.message,
+      code: err.code,
+    });
   } finally {
     client.release();
   }

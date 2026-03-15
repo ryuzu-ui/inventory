@@ -208,7 +208,12 @@ export async function createBorrowRequest({ student_id, borrow_date, return_date
   });
 
   const { ok, data } = await parseJson(res);
-  if (!ok) throw new Error(data?.error || "Failed to create borrow request");
+  if (!ok) {
+    const base = data?.error || "Failed to create borrow request";
+    const details = data?.details ? ` (${data.details})` : "";
+    const code = data?.code ? ` [${data.code}]` : "";
+    throw new Error(`${base}${details}${code}`);
+  }
   return data;
 }
 
