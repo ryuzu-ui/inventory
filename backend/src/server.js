@@ -713,10 +713,19 @@ app.get("/api/borrow-requests", async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT id, student_id, status, borrow_date, return_date, created_at
-      FROM public.borrow_requests
-      WHERE ($1::int IS NULL OR student_id = $1::int)
-      ORDER BY created_at DESC, id DESC
+      SELECT
+        br.id,
+        br.student_id,
+        u.school_id AS student_school_id,
+        u.full_name AS student_full_name,
+        br.status,
+        br.borrow_date,
+        br.return_date,
+        br.created_at
+      FROM public.borrow_requests br
+      LEFT JOIN public.users u ON br.student_id = u.id
+      WHERE ($1::int IS NULL OR br.student_id = $1::int)
+      ORDER BY br.created_at DESC, br.id DESC
       LIMIT 200
       `,
       [studentId]

@@ -269,7 +269,7 @@ export default function BorrowRequests() {
                     }}
                   >
                     <td style={td}>{r.id}</td>
-                    <td style={td}>{r.student_id}</td>
+                    <td style={td}>{r.student_school_id || r.student_id}</td>
                     <td style={td}>{r.status}</td>
                     <td style={td}>{String(r.borrow_date || "").slice(0, 10)}</td>
                     <td style={td}>{String(r.return_date || "").slice(0, 10)}</td>
@@ -297,7 +297,7 @@ export default function BorrowRequests() {
               <div>
                 <div style={{ fontWeight: 900, fontSize: 16 }}>Request #{selectedRequest.id}</div>
                 <div style={{ opacity: 0.8, marginTop: 2 }}>
-                  Student: <span style={{ fontWeight: 800 }}>{selectedRequest.student_id}</span>
+                  Student: <span style={{ fontWeight: 800 }}>{selectedRequest.student_school_id || selectedRequest.student_id}</span>
                 </div>
                 <div style={{ opacity: 0.8, marginTop: 2 }}>
                   Status: <span style={{ fontWeight: 800 }}>{selectedRequest.status}</span>
