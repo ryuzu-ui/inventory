@@ -70,6 +70,20 @@ export default function Dashboard() {
   const [endTime, setEndTime] = useState("11:00");
   const [panelMessage, setPanelMessage] = useState("");
 
+  const usedRooms = useMemo(() => {
+    return reservations.filter(
+      (r) => String(r.status).toLowerCase() === "approved"
+    ).length;
+  }, [reservations]);
+
+  const totalRooms = rooms.length;
+
+  const availableRooms = totalRooms - usedRooms;
+
+  const usageRate = totalRooms
+    ? Math.round((usedRooms / totalRooms) * 100)
+    : 0;
+
   const calendarEvents = useMemo(() => {
     return calendarReservations.map((e) => ({
       title: e.title,
@@ -257,7 +271,11 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ProgressWidget />
+        <ProgressWidget
+          usageRate={usageRate}
+          usedRooms={usedRooms}
+          availableRooms={availableRooms}
+        />
 
         <ChartCard title="Pending Requests by Room">
           <ResponsiveContainer width="100%" height="100%">
@@ -284,39 +302,49 @@ export default function Dashboard() {
       {/* TABLE */}
       <div style={{ marginTop: "30px" }}>
         <h3>Pending Room Reservations</h3>
+
         <div style={styles.tableCard}>
           <table style={styles.table}>
             <thead>
               <tr>
                 <th style={styles.th}>Requested By</th>
-                <th>Room</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Status</th>
-                <th>Action</th>
+                <th style={styles.th}>Room</th>
+                <th style={styles.th}>Date</th>
+                <th style={styles.th}>Time</th>
+                <th style={styles.th}>Status</th>
+                <th style={{ ...styles.th, textAlign: "center" }}>Action</th>
               </tr>
             </thead>
+
             <tbody>
               {reservations.length === 0 ? (
                 <tr>
-                  <td colSpan="6" align="center">
+                  <td colSpan="6" style={styles.emptyRow}>
                     No pending reservations
                   </td>
                 </tr>
               ) : (
                 reservations.map((r) => (
                   <tr key={r.id} style={styles.row}>
-                    <td>{r.reserved_by_name || `User #${r.reserved_by}`}</td>
-                    <td>{r.room_name}</td>
-                    <td>{String(r.reservation_date).slice(0, 10)}</td>
-                    <td>
-                      {String(r.start_time).slice(0, 5)} –
+                    <td style={styles.td}>
+                      {r.reserved_by_name || `User #${r.reserved_by}`}
+                    </td>
+
+                    <td style={styles.td}>{r.room_name}</td>
+
+                    <td style={styles.td}>
+                      {String(r.reservation_date).slice(0, 10)}
+                    </td>
+
+                    <td style={styles.td}>
+                      {String(r.start_time).slice(0, 5)} –{" "}
                       {String(r.end_time).slice(0, 5)}
                     </td>
-                    <td>
+
+                    <td style={styles.td}>
                       <span
                         style={{
-                          padding: "4px 10px",
+                          padding: "5px 12px",
                           borderRadius: "20px",
                           fontSize: "12px",
                           fontWeight: "600",
@@ -327,13 +355,25 @@ export default function Dashboard() {
                         {r.status}
                       </span>
                     </td>
-                    <td>
+
+                    <td style={{ ...styles.td, textAlign: "center" }}>
                       {String(r.status).toLowerCase() === "pending" ? (
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <button onClick={() => handleSetStatus(r.id, "approved")} style={styles.approveBtn}>
+                        <div style={styles.actionBtns}>
+                          <button
+                            onClick={() =>
+                              handleSetStatus(r.id, "approved")
+                            }
+                            style={styles.approveBtn}
+                          >
                             Approve
                           </button>
-                          <button onClick={() => handleSetStatus(r.id, "cancelled")} style={styles.rejectBtn}>
+
+                          <button
+                            onClick={() =>
+                              handleSetStatus(r.id, "cancelled")
+                            }
+                            style={styles.rejectBtn}
+                          >
                             Reject
                           </button>
                         </div>
@@ -510,22 +550,26 @@ function ChartCard({ title, children }) {
   );
 }
 
-function ProgressWidget() {
+function ProgressWidget({ usageRate, usedRooms, availableRooms }) {
   return (
     <div style={styles.progressCard}>
-      <h4>Progress</h4>
+      <h4>Room Usage</h4>
 
-      <div style={styles.donut}>
-        <div style={styles.donutInner}>45%</div>
+      <div
+        style={{
+          ...styles.donut,
+          background: `conic-gradient(#f59e0b ${usageRate}%, #e5e7eb ${usageRate}%)`
+        }}
+      >
+        <div style={styles.donutInner}>{usageRate}%</div>
       </div>
 
       <div style={styles.progressText}>
-        <p>Lorem ipsum</p>
-        <p>Lorem ipsum</p>
-        <p>Lorem ipsum</p>
+        <p>🟠 Used: {usedRooms}</p>
+        <p>🔵 Available: {availableRooms}</p>
       </div>
 
-      <button style={styles.orangeBtn}>Check Now</button>
+      <button style={styles.orangeBtn}>View Rooms</button>
     </div>
   );
 }
@@ -678,10 +722,10 @@ const styles = {
   },
 
   card: {
-    background: "#0f172a",
+    background: "#ffffff",
     padding: "20px",
     borderRadius: "12px",
-    boxShadow: "0 6px 18px rgba(0,0,0,0.25)",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
     height: "420px",
     marginBottom: "25px",
     overflow: "hidden",
@@ -748,11 +792,11 @@ const styles = {
   },
 
   progressCard: {
-    background: "#0f172a",
-    color: "#fff",
+    background: "#ffffff",
+    color: "#334155",
     padding: "16px",
     borderRadius: "10px",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+    boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
     textAlign: "center",
     height: "320px",
   },
@@ -761,7 +805,6 @@ const styles = {
     width: "120px",
     height: "120px",
     borderRadius: "50%",
-    border: "6px solid #f59e0b",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -967,4 +1010,17 @@ const styles = {
     width: "80%",
     maxWidth: "800px",
   },
+
+  actionBtns: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "8px",
+  },
+
+  emptyRow: {
+    textAlign: "center",
+    padding: "20px",
+    color: "#64748b",
+    fontSize: "14px",
+  }
 };
