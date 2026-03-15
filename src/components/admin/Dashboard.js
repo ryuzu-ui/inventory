@@ -64,7 +64,7 @@ export default function Dashboard() {
       const s = await getAdminStats();
       setStats(s?.reservations || null);
 
-      const list = await getAdminRoomReservations({ status: "pending" });
+      const list = await getAdminRoomReservations();
       setReservations(list);
     } catch (e) {
       setMessage(e.message || "Failed to load dashboard data.");
@@ -93,11 +93,21 @@ export default function Dashboard() {
 
   const roomsData = useMemo(() => {
     const map = {};
-    reservations.forEach((r) => {
-      const key = r.room_name || `Room ${r.lab_room_id}`;
-      map[key] = (map[key] || 0) + 1;
-    });
-    return Object.entries(map).map(([name, value]) => ({ name, value }));
+
+    reservations
+      .filter(r => String(r.status).toLowerCase() === "pending")
+      .forEach((r) => {
+        const key = r.room_name || `Room ${r.lab_room_id}`;
+        map[key] = (map[key] || 0) + 1;
+      });
+
+    const result = Object.entries(map).map(([name, value]) => ({ name, value }));
+
+    if(result.length === 0){
+      return [{ name: "No Data", value: 0 }];
+    }
+
+    return result;
   }, [reservations]);
 
   const handleSetStatus = async (id, status) => {
@@ -201,7 +211,7 @@ export default function Dashboard() {
 				<table style={styles.table}>
 					<thead>
 						<tr>
-							<th>Requested By</th>
+              <th style={styles.th}>Requested By</th>
 							<th>Room</th>
 							<th>Date</th>
 							<th>Time</th>
@@ -220,7 +230,7 @@ export default function Dashboard() {
 							</tr>
 						) : (
 							reservations.map((r)=>(
-								<tr key={r.id}>
+								<tr key={r.id} style={styles.row}>
 
 									<td>{r.reserved_by_name || `User #${r.reserved_by}`}</td>
 
@@ -233,7 +243,20 @@ export default function Dashboard() {
 										{String(r.end_time).slice(0,5)}
 									</td>
 
-									<td>{r.status}</td>
+									<td>
+                    <span
+                      style={{
+                        padding:"4px 10px",
+                        borderRadius:"20px",
+                        fontSize:"12px",
+                        fontWeight:"600",
+                        background:getStatusColor(r.status),
+                        color:"#fff"
+                      }}
+                    >
+                      {r.status}
+                    </span>
+                  </td>
 
 									<td>
 
@@ -301,9 +324,13 @@ function Card({ title, value, dark }) {
 
 function ChartCard({ title, children }) {
   return (
-    <div style={{...styles.card, height:"320px"}}>
-      <h4>{title}</h4>
-      {children}
+    <div style={styles.card}>
+      <h4 style={{marginBottom:"10px"}}>{title}</h4>
+
+      <div style={{width:"100%",height:"340px"}}>
+        {children}
+      </div>
+
     </div>
   );
 }
@@ -384,10 +411,15 @@ function MiniCalendar({ events }) {
         {days.map((d,i)=>{
 
           const reservations = events.filter(e=>{
-            const date = new Date(e.date)
-            return date.getDate() === d &&
-                   date.getMonth() === month &&
-                   date.getFullYear() === year
+            if(!d) return false
+
+            const [y,m,day] = e.date.split("-").map(Number)
+
+            return (
+              day === d &&
+              m-1 === month &&
+              y === year
+            )
           })
 
           const hasEvent = reservations.length > 0
@@ -456,61 +488,97 @@ const styles = {
   chartGrid:{
     display:"grid",
     gridTemplateColumns:"2fr 1fr",
-    gridTemplateRows:"1fr 1fr",
-    gap:"20px",
-    marginTop:"20px"
+    gridTemplateRows:"auto auto",
+    columnGap:"25px",
+    rowGap:"35px",   // space between charts
+    marginBottom:"60px"
   },
 
-	card:{
-		background:"#fff",
-		padding:"16px",
-		borderRadius:"10px",
-		boxShadow:"0 4px 10px rgba(0,0,0,0.08)"
-	},
+  card:{
+    background:"#0f172a",
+    padding:"20px",
+    borderRadius:"12px",
+    boxShadow:"0 6px 18px rgba(0,0,0,0.25)",
+    height:"420px",
+    marginBottom:"25px",
+    overflow:"hidden"
+  },
 
-	tableCard:{
-		background:"#fff",
-		padding:"16px",
-		borderRadius:"10px",
-		boxShadow:"0 4px 10px rgba(0,0,0,0.08)"
-	},
+  row:{
+    transition:"0.2s",
+    cursor:"default"
+  },
 
-	table:{
-		width:"100%",
-		borderCollapse:"collapse"
-	},
+  tableCard:{
+    background:"#ffffff",
+    padding:"0",
+    borderRadius:"12px",
+    boxShadow:"0 6px 18px rgba(0,0,0,0.08)",
+    overflow:"hidden",
+    marginTop:"10px"
+  },
 
-	approveBtn:{
-		background:"#2563eb",
-		color:"#fff",
-		border:"none",
-		padding:"6px 10px",
-		borderRadius:"6px",
-		cursor:"pointer"
-	},
+  table:{
+    width:"100%",
+    borderCollapse:"separate",
+    borderSpacing:"0",
+    fontSize:"14px"
+  },
 
-	rejectBtn:{
-		background:"#dc2626",
-		color:"#fff",
-		border:"none",
-		padding:"6px 10px",
-		borderRadius:"6px",
-		cursor:"pointer"
-	},
+  th:{
+    textAlign:"left",
+    padding:"14px 16px",
+    background:"#f8fafc",
+    fontWeight:"600",
+    fontSize:"13px",
+    color:"#475569",
+    borderBottom:"1px solid #e5e7eb"
+  },
+
+  td:{
+    padding:"14px 16px",
+    borderBottom:"1px solid #f1f5f9",
+    fontSize:"14px",
+    color:"#334155"
+  },
+
+  approveBtn:{
+    background:"#2563eb",
+    color:"#fff",
+    border:"none",
+    padding:"6px 12px",
+    borderRadius:"6px",
+    cursor:"pointer",
+    fontSize:"13px",
+    fontWeight:"500"
+  },
+
+  rejectBtn:{
+    background:"#dc2626",
+    color:"#fff",
+    border:"none",
+    padding:"6px 12px",
+    borderRadius:"6px",
+    cursor:"pointer",
+    fontSize:"13px",
+    fontWeight:"500"
+  },
 
   progressCard:{
-    background:"#fff",
+    background:"#0f172a",
+    color:"#fff",
     padding:"16px",
     borderRadius:"10px",
     boxShadow:"0 4px 10px rgba(0,0,0,0.08)",
-    textAlign:"center"
+    textAlign:"center",
+    height:"320px"
   },
 
   donut:{
     width:"120px",
     height:"120px",
     borderRadius:"50%",
-    border:"14px solid #f59e0b",
+    border:"6px solid #f59e0b", // manipis na
     display:"flex",
     alignItems:"center",
     justifyContent:"center",
@@ -541,7 +609,7 @@ const styles = {
     display:"grid",
     gridTemplateColumns:"repeat(4,1fr)",
     gap:"20px",
-    marginBottom:"30px"
+    marginBottom:"50px" // dagdag space
   },
 
   statCard:{
@@ -563,25 +631,11 @@ const styles = {
     fontSize:"16px"
   },
 
-  calendarCard:{
-    background:"#fff",
-    padding:"16px",
-    borderRadius:"10px",
-    boxShadow:"0 4px 10px rgba(0,0,0,0.08)"
-  },
-
   sideWidgets:{
     display:"grid",
     gridTemplateRows:"auto auto",
     gap:"20px",
     alignContent:"start"
-  },
-
-  calendarGrid:{
-    display:"grid",
-    gridTemplateColumns:"repeat(7,1fr)",
-    gap:"4px",
-    fontSize:"12px"
   },
 
   calendarHeader:{
@@ -591,11 +645,14 @@ const styles = {
   },
 
   calendarDay:{
-    height:"24px",
+    height:"36px",
     display:"flex",
     alignItems:"center",
     justifyContent:"center",
-    borderRadius:"4px"
+    borderRadius:"6px",
+    cursor:"pointer",
+    transition:"0.2s",
+    fontWeight:"500"
   },
 
   calendarHeaderBar:{
@@ -644,6 +701,12 @@ const styles = {
     fontSize:"12px"
   },
 
-  
+  calendarCard:{
+    background:"#fff",
+    padding:"16px",
+    borderRadius:"10px",
+    boxShadow:"0 4px 10px rgba(0,0,0,0.08)",
+    height:"320px"
+  },
 
 };
