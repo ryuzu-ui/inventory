@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useTheme } from "../../context/ThemeContext";
 
 export default function ChatbotWidget() {
@@ -15,9 +15,32 @@ export default function ChatbotWidget() {
 	const [input, setInput] = useState("");
 	const [loading, setLoading] = useState(false);
 
+	const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
 	const [position, setPosition] = useState({ x: window.innerWidth - 90, y: window.innerHeight - 90 });
 
 	const dragging = useRef(false);
+
+	useEffect(() => {
+		const onResize = () => {
+			const nextIsMobile = window.innerWidth <= 768;
+			setIsMobile(nextIsMobile);
+			if (!nextIsMobile) {
+				setPosition((p) => {
+					const bubbleSize = 64;
+					const margin = 10;
+					const maxX = Math.max(margin, window.innerWidth - bubbleSize - margin);
+					const maxY = Math.max(margin, window.innerHeight - bubbleSize - margin);
+					return {
+						x: Math.min(Math.max(p.x, margin), maxX),
+						y: Math.min(Math.max(p.y, margin), maxY)
+					};
+				});
+			}
+		};
+
+		window.addEventListener("resize", onResize);
+		return () => window.removeEventListener("resize", onResize);
+	}, []);
 
 	const sendMessage = async () => {
 
@@ -55,10 +78,12 @@ export default function ChatbotWidget() {
 	};
 
 	const handleMouseDown = () => {
+		if (isMobile) return;
 		dragging.current = true;
 	};
 
 	const handleMouseMove = (e) => {
+		if (isMobile) return;
 		if (!dragging.current) return;
 
 		setPosition({
@@ -68,6 +93,7 @@ export default function ChatbotWidget() {
 	};
 
 	const handleMouseUp = () => {
+		if (isMobile) return;
 
 		dragging.current = false;
 
@@ -107,8 +133,10 @@ export default function ChatbotWidget() {
 				onMouseDown={handleMouseDown}
 				style={{
 					position: "fixed",
-					left: position.x,
-					top: position.y,
+					left: isMobile ? "auto" : position.x,
+					top: isMobile ? "auto" : position.y,
+					right: isMobile ? "calc(16px + env(safe-area-inset-right))" : "auto",
+					bottom: isMobile ? "calc(16px + env(safe-area-inset-bottom))" : "auto",
 					width: "64px",
 					height: "64px",
 					borderRadius: "50%",
@@ -120,7 +148,7 @@ export default function ChatbotWidget() {
 					display: "flex",
 					alignItems: "center",
 					justifyContent: "center",
-					cursor: "grab",
+					cursor: isMobile ? "pointer" : "grab",
 					zIndex: 9999
 				}}
 			>
