@@ -7,7 +7,30 @@ const bcrypt = require("bcryptjs");
 const pool = require("./db");
 
 const app = express();
-app.use(cors());
+
+const allowedOrigins = String(process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin: (origin, cb) => {
+    // Allow non-browser clients / same-origin / curl / render health checks
+    if (!origin) return cb(null, true);
+
+    // If you didn't configure CORS_ORIGINS, allow all (keeps local dev simple)
+    if (allowedOrigins.length === 0) return cb(null, true);
+
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json());
 
 // ✅ Startup DB check: proves which DB you are connected to
@@ -200,6 +223,10 @@ app.post("/api/auth/login", async (req, res) => {
 // -------------------- 
 app.get("/api/health", async (req, res) => {
   res.json({ ok: true, message: "Backend is running" });
+});
+
+app.get("/", (req, res) => {
+  res.status(200).send("OK");
 });
 
 // --------------------
@@ -1140,4 +1167,4 @@ app.post("/api/borrow-requests/:id/return", async (req, res) => {
 });
 
 const port = Number(process.env.PORT) || 5000;
-app.listen(port, () => console.log(`API running on http://localhost:${port}`));
+app.listen(port, "0.0.0.0", () => console.log(`API running on http://0.0.0.0:${port}`));
