@@ -211,10 +211,9 @@ export default function LoginPage() {
             color: "white",
             border: "none",
             borderRadius: "6px",
-            cursor: "pointer",
             fontWeight: 600,
             opacity: loading ? 0.5 : 1,
-            cursor: loading ? "not-allowed" : "pointer",
+            pointerEvents: loading ? "none" : "auto",
           }}
         >
           {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Login"}
