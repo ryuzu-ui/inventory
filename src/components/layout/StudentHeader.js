@@ -13,6 +13,9 @@ export default function StudentHeader({ onMenuClick }) {
 
     const [showProfile, setShowProfile] = useState(false);
     const [activePanel, setActivePanel] = useState(null);
+	const [isMobile, setIsMobile] = useState(
+		typeof window !== "undefined" ? window.innerWidth <= 768 : false
+	);
 
     const [borrowRequests, setBorrowRequests] = useState([]);
     const [borrowLoading, setBorrowLoading] = useState(false);
@@ -39,6 +42,12 @@ export default function StudentHeader({ onMenuClick }) {
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+	useEffect(() => {
+		const onResize = () => setIsMobile(window.innerWidth <= 768);
+		window.addEventListener("resize", onResize);
+		return () => window.removeEventListener("resize", onResize);
+	}, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -425,7 +434,7 @@ export default function StudentHeader({ onMenuClick }) {
                                 border: `1px solid ${theme.border}`,
                                 background: textareaBg,
                                 color: theme.text,
-                                fontSize: "14px",
+                                fontSize: isMobile ? "16px" : "14px",
                                 resize: "vertical",
                                 boxSizing: "border-box"
                             }}

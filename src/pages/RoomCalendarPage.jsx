@@ -547,8 +547,18 @@ export default function RoomCalendarPage() {
 					<hr />
 
 					<div>
-						<input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-						<input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+						<input
+							type="time"
+							value={startTime}
+							onChange={(e) => setStartTime(e.target.value)}
+							style={isMobile ? { fontSize: "16px" } : undefined}
+						/>
+						<input
+							type="time"
+							value={endTime}
+							onChange={(e) => setEndTime(e.target.value)}
+							style={isMobile ? { fontSize: "16px" } : undefined}
+						/>
 
 						<button onClick={submitReservation}>Reserve</button>
 

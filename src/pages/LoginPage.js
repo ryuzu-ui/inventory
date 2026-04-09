@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { login, register } from "../components/services/authService";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
@@ -15,6 +15,9 @@ const inputStyle = {
 };
 
 export default function LoginPage() {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false
+  );
   const [loginValue, setLoginValue] = useState("");
   const [fullName, setFullName] = useState("");
   const [idNumber, setIdNumber] = useState("");
@@ -90,6 +93,18 @@ export default function LoginPage() {
     else handleLogin();
   };
 
+  const mobileInputStyle = isMobile ? { fontSize: "16px" } : null;
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   return (
     <div
       style={{
@@ -120,27 +135,27 @@ export default function LoginPage() {
               placeholder="Full name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              style={inputStyle}
+              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
             />
 
             <input
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={inputStyle}
+              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
             />
 
             <input
               placeholder="ID Number"
               value={idNumber}
               onChange={(e) => setIdNumber(e.target.value)}
-              style={inputStyle}
+              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
             />
 
             <select
               value={signUpRole}
               onChange={(e) => setSignUpRole(e.target.value)}
-              style={inputStyle}
+              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
             >
               <option value="student">Student</option>
               <option value="admin">Admin</option>
@@ -152,7 +167,7 @@ export default function LoginPage() {
                 placeholder="Admin passcode"
                 value={adminPasscode}
                 onChange={(e) => setAdminPasscode(e.target.value)}
-                style={inputStyle}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
               />
             )}
 
@@ -161,7 +176,7 @@ export default function LoginPage() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
+              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
             />
           </>
         ) : (
@@ -170,7 +185,7 @@ export default function LoginPage() {
               placeholder="Email or ID Number"
               value={loginValue}
               onChange={(e) => setLoginValue(e.target.value)}
-              style={inputStyle}
+              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
             />
 
             <input
@@ -178,7 +193,7 @@ export default function LoginPage() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
+              style={isMobile ? { ...inputStyle, fontSize: "16px" } : inputStyle}
             />
           </>
         )}
@@ -187,7 +202,17 @@ export default function LoginPage() {
           onClick={handleSubmit}
           disabled={loading}
           style={{
-            ...styles.button,
+            display: "block",
+            margin: "0 auto",
+            width: "100%",
+            padding: "12px",
+            marginTop: "6px",
+            background: "#0d47a1",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontWeight: 600,
             opacity: loading ? 0.5 : 1,
             cursor: loading ? "not-allowed" : "pointer",
           }}

@@ -6,6 +6,9 @@ import { useTheme } from "../../context/ThemeContext";
 
 export default function BorrowTable() {
 	const { theme, themeName } = useTheme();
+	const [isMobile, setIsMobile] = useState(
+		typeof window !== "undefined" ? window.innerWidth <= 768 : false
+	);
 
 	const [inventory, setInventory] = useState([]);
 	const [items, setItems] = useState([]);
@@ -16,6 +19,12 @@ export default function BorrowTable() {
 	const [name, setName] = useState("");
 	const [labNo, setLabNo] = useState("");
 	const [controlNo, setControlNo] = useState("");
+
+	useEffect(() => {
+		const onResize = () => setIsMobile(window.innerWidth <= 768);
+		window.addEventListener("resize", onResize);
+		return () => window.removeEventListener("resize", onResize);
+	}, []);
 
 	/* ===== STYLES ===== */
 	const th = {
@@ -71,7 +80,7 @@ export default function BorrowTable() {
 		border: "1px solid #000",
 		background: "#ffffff",
 		color: "#000000",
-		fontSize: "14px",
+		fontSize: isMobile ? "16px" : "14px",
 		boxSizing: "border-box",
 	};
 
@@ -229,7 +238,13 @@ export default function BorrowTable() {
 										type="number"
 										value={item.qty}
 										onChange={(e) => updateQty(item.id, Number(e.target.value))}
-										style={{ width: "60px", border: "1px solid #000", color: "#000000", background: "#ffffff" }}
+										style={{
+											width: "60px",
+											border: "1px solid #000",
+											color: "#000000",
+											background: "#ffffff",
+											fontSize: isMobile ? "16px" : "14px",
+										}}
 									/>
 								</td>
 							</tr>
