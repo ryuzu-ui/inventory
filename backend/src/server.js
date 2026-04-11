@@ -25,12 +25,22 @@ const corsOptions = {
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
   optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
+
+function requireAdminKey(req, res, next) {
+  const configured = String(process.env.ADMIN_API_KEY || "").trim();
+  if (!configured) return next();
+  const provided = String(req.header("x-admin-key") || "").trim();
+  if (!provided || provided !== configured) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  return next();
+}
 
 // ✅ Startup DB check: proves which DB you are connected to
 async function checkDb() {
@@ -279,7 +289,7 @@ app.post("/api/problem-reports", async (req, res) => {
 });
 
 // Admin: list problem reports
-app.get("/api/problem-reports", async (req, res) => {
+app.get("/api/problem-reports", requireAdminKey, async (req, res) => {
   try {
     await ensureProblemReportsTable();
 
@@ -310,7 +320,7 @@ app.get("/api/problem-reports", async (req, res) => {
 
 // --------------------
 // ✅ LAB ROOMS
-// --------------------
+// -------------------- 
 app.get("/api/lab-rooms", async (req, res) => {
   try {
     const result = await pool.query(
@@ -493,7 +503,7 @@ app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
 });
 
 // Admin: approve/reject/cancel/pending
-app.patch("/api/room-reservations/:id/status", async (req, res) => {
+app.patch("/api/room-reservations/:id/status", requireAdminKey, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { status } = req.body;
@@ -594,7 +604,7 @@ app.patch("/api/room-reservations/:id/status", async (req, res) => {
 // --------------------
 
 // Admin stats (counts from DB)
-app.get("/api/admin/stats", async (req, res) => {
+app.get("/api/admin/stats", requireAdminKey, async (req, res) => {
   try {
     const reservations = await pool.query(`
       SELECT
@@ -614,7 +624,7 @@ app.get("/api/admin/stats", async (req, res) => {
 });
 
 // Admin list of room reservations (filter by status)
-app.get("/api/admin/room-reservations", async (req, res) => {
+app.get("/api/admin/room-reservations", requireAdminKey, async (req, res) => {
   try {
     const status = req.query.status ? String(req.query.status).toLowerCase() : null;
 
@@ -683,7 +693,7 @@ app.get("/api/items", async (req, res) => {
 });
 
 // Admin: create item
-app.post("/api/items", async (req, res) => {
+app.post("/api/items", requireAdminKey, async (req, res) => {
   try {
     const { item_code, item_name, category, quantity } = req.body;
 
@@ -715,7 +725,7 @@ app.post("/api/items", async (req, res) => {
 });
 
 // Admin: update item
-app.put("/api/items/:id", async (req, res) => {
+app.put("/api/items/:id", requireAdminKey, async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { item_code, item_name, category, quantity } = req.body;
@@ -761,7 +771,7 @@ app.put("/api/items/:id", async (req, res) => {
 });
 
 // Admin: delete item
-app.delete("/api/items/:id", async (req, res) => {
+app.delete("/api/items/:id", requireAdminKey, async (req, res) => {
   try {
     const id = Number(req.params.id);
 
@@ -993,7 +1003,7 @@ app.get("/api/borrow-requests/:id/items", async (req, res) => {
 // Admin: approve/reject a borrow request
 // Body: { status: 'approved' | 'rejected', user_id }
 // On approval: decrement items.quantity and log it.
-app.patch("/api/borrow-requests/:id/status", async (req, res) => {
+app.patch("/api/borrow-requests/:id/status", requireAdminKey, async (req, res) => {
   const client = await pool.connect();
   try {
     const id = Number(req.params.id);
@@ -1128,7 +1138,7 @@ app.patch("/api/borrow-requests/:id/status", async (req, res) => {
 // Admin: mark returned
 // Body: { user_id, condition_notes? }
 // Behavior: increments item quantities back, inserts into returns, sets borrow_requests.status='returned'
-app.post("/api/borrow-requests/:id/return", async (req, res) => {
+app.post("/api/borrow-requests/:id/return", requireAdminKey, async (req, res) => {
   const client = await pool.connect();
   try {
     const id = Number(req.params.id);

@@ -1,6 +1,12 @@
 const API_BASE =
   process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
 
+const ADMIN_API_KEY = process.env.REACT_APP_ADMIN_API_KEY;
+
+function adminHeaders() {
+  return ADMIN_API_KEY ? { "x-admin-key": ADMIN_API_KEY } : {};
+}
+
 async function parseJson(res) {
   let data = null;
   try {
@@ -123,7 +129,7 @@ export async function apiLogin({ email, password }) {
 export async function updateReservationStatus({ id, status }) {
   const res = await fetch(`${API_BASE}/api/room-reservations/${id}/status`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...adminHeaders() },
     body: JSON.stringify({ status }),
   });
 
@@ -133,10 +139,12 @@ export async function updateReservationStatus({ id, status }) {
 }
 
 // --------------------
-// ✅ ADMIN DASHBOARD APIs (NEW)
+// ADMIN DASHBOARD APIs (NEW)
 // --------------------
 export async function getAdminStats() {
-  const res = await fetch(`${API_BASE}/api/admin/stats`);
+  const res = await fetch(`${API_BASE}/api/admin/stats`, {
+    headers: { ...adminHeaders() },
+  });
   const { ok, data } = await parseJson(res);
   if (!ok) throw new Error(data?.error || "Failed to fetch admin stats");
   return data; // { reservations: {total,pending,approved,rejected,cancelled} }
@@ -150,7 +158,9 @@ export async function getAdminRoomReservations({ status } = {}) {
     ? `${API_BASE}/api/admin/room-reservations?${params}`
     : `${API_BASE}/api/admin/room-reservations`;
 
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: { ...adminHeaders() },
+  });
   const { ok, data } = await parseJson(res);
   if (!ok) throw new Error(data?.error || "Failed to fetch reservations list");
   return Array.isArray(data) ? data : [];
@@ -175,7 +185,7 @@ export async function getItems({ q, category } = {}) {
 export async function createItem({ item_code, item_name, category, quantity }) {
   const res = await fetch(`${API_BASE}/api/items`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...adminHeaders() },
     body: JSON.stringify({ item_code, item_name, category, quantity }),
   });
 
@@ -187,7 +197,7 @@ export async function createItem({ item_code, item_name, category, quantity }) {
 export async function updateItem(id, { item_code, item_name, category, quantity }) {
   const res = await fetch(`${API_BASE}/api/items/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...adminHeaders() },
     body: JSON.stringify({ item_code, item_name, category, quantity }),
   });
 
@@ -199,6 +209,7 @@ export async function updateItem(id, { item_code, item_name, category, quantity 
 export async function deleteItem(id) {
   const res = await fetch(`${API_BASE}/api/items/${id}`, {
     method: "DELETE",
+    headers: { ...adminHeaders() },
   });
 
   const { ok, data } = await parseJson(res);
@@ -250,7 +261,7 @@ export async function getBorrowRequestItems(id) {
 export async function setBorrowRequestStatus(id, { status, user_id }) {
   const res = await fetch(`${API_BASE}/api/borrow-requests/${id}/status`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...adminHeaders() },
     body: JSON.stringify({ status, user_id }),
   });
 
@@ -262,7 +273,7 @@ export async function setBorrowRequestStatus(id, { status, user_id }) {
 export async function returnBorrowRequest(id, { user_id, condition_notes }) {
   const res = await fetch(`${API_BASE}/api/borrow-requests/${id}/return`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...adminHeaders() },
     body: JSON.stringify({ user_id, condition_notes }),
   });
 
@@ -287,7 +298,9 @@ export async function submitProblemReport({ student_id, message }) {
 }
 
 export async function getProblemReports() {
-  const res = await fetch(`${API_BASE}/api/problem-reports`);
+  const res = await fetch(`${API_BASE}/api/problem-reports`, {
+    headers: { ...adminHeaders() },
+  });
   const { ok, data } = await parseJson(res);
   if (!ok) throw new Error(data?.error || "Failed to load reports");
   return Array.isArray(data) ? data : [];
