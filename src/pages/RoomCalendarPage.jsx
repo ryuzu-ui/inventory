@@ -388,6 +388,7 @@ export default function RoomCalendarPage() {
           >
             <FullCalendar
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+              timeZone="local"
               initialView="timeGridWeek"
               height="100%"
               headerToolbar={{
