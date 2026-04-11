@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -107,18 +107,25 @@ export default function Dashboard() {
     ? Math.min(100, Math.round((usedRooms / totalRooms) * 100))
     : 0;
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const s = await getAdminStats();
       setStats(s?.reservations || null);
 
       const list = await getAdminRoomReservations();
       setReservations(Array.isArray(list) ? list : []);
-    } catch {
+    } catch (e) {
       setStats(null);
       setReservations([]);
+      toast.push({
+        type: "error",
+        title: "Failed to load admin data",
+        description:
+          e?.message ||
+          "Request failed. If ADMIN_API_KEY is enabled on the backend, make sure REACT_APP_ADMIN_API_KEY is set on the frontend.",
+      });
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     (async () => {
@@ -138,7 +145,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
   async function loadDayReservations(roomId, dateStr) {
     if (!roomId || !dateStr) return;
