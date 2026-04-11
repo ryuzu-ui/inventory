@@ -164,15 +164,29 @@ export default function RoomCalendarPage() {
 
   }, [miniDate, selectedRooms])
 
+	useEffect(() => {
+		if (!panelOpen) return;
+		if (!selectedDate) return;
+		loadDayReservations(selectedDate);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedRooms]);
+
   const loadDayReservations = async (dateStr) => {
 
     if (!dateStr) return;
+
+    const activeRoomId = selectedRooms?.length ? Number(selectedRooms[0]) : null;
+    if (!Number.isInteger(activeRoomId) || activeRoomId <= 0) {
+      setDayReservations([]);
+      return;
+    }
 
     setLoadingDay(true);
 
     try {
 
       const data = await getRoomReservationsByDate({
+		roomId: activeRoomId,
         date: dateStr
       });
 
