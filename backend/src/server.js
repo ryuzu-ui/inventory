@@ -348,8 +348,8 @@ app.get("/api/room-reservations/events", async (req, res) => {
       SELECT
         rr.id,
         lr.room_name AS title,
-        (rr.reservation_date::timestamp + rr.start_time) AS start,
-        (rr.reservation_date::timestamp + rr.end_time)   AS "end",
+        (rr.reservation_date::text || 'T' || rr.start_time::text) AS start,
+        (rr.reservation_date::text || 'T' || rr.end_time::text)   AS "end",
         rr.lab_room_id,
         rr.status
       FROM public.room_reservations rr
