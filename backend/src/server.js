@@ -335,13 +335,23 @@ app.get("/api/lab-rooms", async (req, res) => {
 // Calendar events (approved only)
 app.get("/api/room-reservations/events", async (req, res) => {
   try {
-    const { start, end, roomId } = req.query;
+    const { start, end, roomId, roomIds } = req.query;
 
     if (!start || !end) {
       return res.status(400).json({ error: "start and end are required" });
     }
 
     const roomIdNum = roomId ? Number(roomId) : null;
+    if (roomId !== undefined && roomId !== null && String(roomId).trim() !== "") {
+      if (!Number.isInteger(roomIdNum) || roomIdNum <= 0) {
+        return res.status(400).json({ error: "Invalid roomId" });
+      }
+    }
+
+    const roomIdsArr = String(roomIds || "")
+      .split(",")
+      .map((x) => Number(String(x).trim()))
+      .filter((n) => Number.isInteger(n) && n > 0);
 
     const result = await pool.query(
       `
@@ -356,10 +366,14 @@ app.get("/api/room-reservations/events", async (req, res) => {
       JOIN public.lab_rooms lr ON rr.lab_room_id = lr.id
       WHERE rr.status = 'approved'
         AND rr.reservation_date BETWEEN $1::date AND $2::date
-        AND ($3::int IS NULL OR rr.lab_room_id = $3::int)
+        AND (
+          ($3::int IS NOT NULL AND rr.lab_room_id = $3::int)
+          OR ($3::int IS NULL AND COALESCE(array_length($4::int[], 1), 0) = 0)
+          OR ($3::int IS NULL AND rr.lab_room_id = ANY($4::int[]))
+        )
       ORDER BY start
       `,
-      [start, end, roomIdNum]
+      [start, end, roomIdNum, roomIdsArr]
     );
 
     res.json(result.rows);
@@ -378,6 +392,10 @@ app.get("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   try {
     const roomId = Number(req.params.roomId);
     const { date } = req.query;
+
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      return res.status(400).json({ error: "Invalid roomId" });
+    }
 
     if (!date) {
       return res.status(400).json({ error: "date is required (YYYY-MM-DD)" });
@@ -410,6 +428,10 @@ app.post("/api/lab-rooms/:roomId/reservations", async (req, res) => {
   try {
     const roomId = Number(req.params.roomId);
     const { reserved_by, reservation_date, start_time, end_time } = req.body;
+
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      return res.status(400).json({ error: "Invalid roomId" });
+    }
 
     if (!reserved_by || !reservation_date || !start_time || !end_time) {
       return res.status(400).json({
@@ -488,6 +510,22 @@ app.patch("/api/room-reservations/:id/status", async (req, res) => {
     }
 
     if (statusLower === "approved") {
+      const detailsRes = await pool.query(
+        `
+        SELECT id, lab_room_id, reservation_date, start_time, end_time
+        FROM public.room_reservations
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [id]
+      );
+
+      if (detailsRes.rows.length === 0) {
+        return res.status(404).json({ error: "Reservation not found" });
+      }
+
+      const rr = detailsRes.rows[0];
+
       const expired = await pool.query(
         `
         SELECT 1
@@ -503,6 +541,26 @@ app.patch("/api/room-reservations/:id/status", async (req, res) => {
         return res.status(409).json({
           error: "Cannot approve a reservation that has already ended",
         });
+      }
+
+      const conflict = await pool.query(
+        `
+        SELECT 1
+        FROM public.room_reservations
+        WHERE lab_room_id = $1
+          AND reservation_date = $2::date
+          AND status = 'approved'
+          AND id <> $5
+          AND (start_time < $4::time AND end_time > $3::time)
+        LIMIT 1
+        `,
+        [rr.lab_room_id, rr.reservation_date, rr.start_time, rr.end_time, id]
+      );
+
+      if (conflict.rows.length > 0) {
+        return res
+          .status(409)
+          .json({ error: "Time slot conflicts with an already approved reservation" });
       }
     }
 

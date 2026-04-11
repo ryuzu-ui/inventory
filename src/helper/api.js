@@ -21,11 +21,20 @@ export async function getLabRooms() {
   return Array.isArray(data) ? data : [];
 }
 
-export async function getEvents({ start, end, roomId }) {
+export async function getEvents({ start, end, roomId, roomIds }) {
   const params = new URLSearchParams();
   params.set("start", start);
   params.set("end", end);
   if (roomId) params.set("roomId", String(roomId));
+  if (Array.isArray(roomIds) && roomIds.length) {
+    params.set(
+      "roomIds",
+      roomIds
+        .map((x) => Number(x))
+        .filter((n) => Number.isInteger(n) && n > 0)
+        .join(",")
+    );
+  }
 
   const res = await fetch(`${API_BASE}/api/room-reservations/events?${params}`);
   const { ok, data } = await parseJson(res);

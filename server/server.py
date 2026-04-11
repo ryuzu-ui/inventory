@@ -18,8 +18,10 @@ FAQ_FILE = os.path.join(BASE_DIR, "faq.json")
 
 @app.route("/chat", methods=["POST"])
 def chat():
-	data = request.json
-	message = data["message"]
+	data = request.get_json(silent=True) or {}
+	message = data.get("message")
+	if not isinstance(message, str) or not message.strip():
+		return jsonify({"error": "message is required"}), 400
 
 	response = reply(message)
 
@@ -38,14 +40,20 @@ def get_faqs():
 @app.route("/faqs", methods=["POST"])
 def add_faq():
 
-	data = request.json
+	data = request.get_json(silent=True) or {}
+	question = data.get("question")
+	answer = data.get("answer")
+	if not isinstance(question, str) or not question.strip():
+		return jsonify({"error": "question is required"}), 400
+	if not isinstance(answer, str) or not answer.strip():
+		return jsonify({"error": "answer is required"}), 400
 
 	with open(FAQ_FILE, encoding="utf-8") as f:
 		faqs = json.load(f)
 
 	faqs.append({
-		"question": data["question"],
-		"answer": data["answer"]
+		"question": question,
+		"answer": answer
 	})
 
 	with open(FAQ_FILE, "w", encoding="utf-8") as f:
@@ -59,13 +67,22 @@ def add_faq():
 @app.route("/faqs/<int:index>", methods=["PUT"])
 def edit_faq(index):
 
-	data = request.json
+	data = request.get_json(silent=True) or {}
+	question = data.get("question")
+	answer = data.get("answer")
+	if not isinstance(question, str) or not question.strip():
+		return jsonify({"error": "question is required"}), 400
+	if not isinstance(answer, str) or not answer.strip():
+		return jsonify({"error": "answer is required"}), 400
 
 	with open(FAQ_FILE, encoding="utf-8") as f:
 		faqs = json.load(f)
 
-	faqs[index]["question"] = data["question"]
-	faqs[index]["answer"] = data["answer"]
+	if index < 0 or index >= len(faqs):
+		return jsonify({"error": "FAQ index out of range"}), 404
+
+	faqs[index]["question"] = question
+	faqs[index]["answer"] = answer
 
 	with open(FAQ_FILE, "w", encoding="utf-8") as f:
 		json.dump(faqs, f, indent=2, ensure_ascii=False)
@@ -80,6 +97,9 @@ def delete_faq(index):
 
 	with open(FAQ_FILE, encoding="utf-8") as f:
 		faqs = json.load(f)
+
+	if index < 0 or index >= len(faqs):
+		return jsonify({"error": "FAQ index out of range"}), 404
 
 	faqs.pop(index)
 
