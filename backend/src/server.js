@@ -50,6 +50,15 @@ async function checkDb() {
 }
 checkDb();
 
+async function ensureUsersSectionColumn() {
+  try {
+    await pool.query(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS section TEXT;`);
+  } catch (err) {
+    console.error("❌ Failed to ensure users.section column:", err.message, err.code);
+  }
+}
+ensureUsersSectionColumn();
+
 // --------------------
 // HELPERS
 // --------------------
@@ -90,7 +99,7 @@ async function ensureProblemReportsTable() {
 // Admin registration is allowed ONLY if admin_secret matches ADMIN_REGISTER_SECRET
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { full_name, email, password, role, admin_secret, school_id } = req.body;
+    const { full_name, email, password, role, admin_secret, school_id, section } = req.body;
 
     if (!full_name || !email || !password || !school_id) {
       return res.status(400).json({
@@ -147,13 +156,15 @@ app.post("/api/auth/register", async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
 
+    const sectionValue = String(section || "").trim() || null;
+
     const inserted = await pool.query(
       `
-      INSERT INTO public.users (full_name, email, password_hash, role_id, school_id)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, full_name, email, school_id
+      INSERT INTO public.users (full_name, email, password_hash, role_id, school_id, section)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, full_name, email, school_id, section
       `,
-      [full_name, normalizedEmail, password_hash, roleId, school_id]
+      [full_name, normalizedEmail, password_hash, roleId, school_id, sectionValue]
     );
 
     // ✅ Return role string too
@@ -184,7 +195,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT u.id, u.full_name, u.email, u.password_hash, u.school_id, r.name AS role
+      SELECT u.id, u.full_name, u.email, u.password_hash, u.school_id, u.section, r.name AS role
       FROM public.users u
       LEFT JOIN public.roles r ON u.role_id = r.id
       WHERE LOWER(u.email) = $1 OR u.school_id = $2
@@ -209,6 +220,7 @@ app.post("/api/auth/login", async (req, res) => {
       full_name: user.full_name,
       email: user.email,
       school_id: user.school_id,
+      section: user.section,
       role: String(user.role || "student").toLowerCase(),
     });
   } catch (err) {
@@ -564,7 +576,8 @@ app.get("/api/admin/room-reservations", async (req, res) => {
         rr.end_time,
         rr.status,
         rr.reserved_by,
-        u.full_name AS reserved_by_name
+        u.full_name AS reserved_by_name,
+        u.section AS reserved_by_section
       FROM public.room_reservations rr
       JOIN public.lab_rooms lr ON rr.lab_room_id = lr.id
       LEFT JOIN public.users u ON rr.reserved_by = u.id
@@ -858,6 +871,7 @@ app.get("/api/borrow-requests", async (req, res) => {
         br.student_id,
         u.school_id AS student_school_id,
         u.full_name AS student_full_name,
+        u.section AS student_section,
         br.status,
         br.borrow_date,
         br.return_date,
@@ -865,6 +879,7 @@ app.get("/api/borrow-requests", async (req, res) => {
         br.created_at
       FROM public.borrow_requests br
       LEFT JOIN public.users u ON br.student_id = u.id
+
       LEFT JOIN (
         SELECT borrow_request_id, MAX(returned_at) AS returned_at
         FROM public.returns

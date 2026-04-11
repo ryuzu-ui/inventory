@@ -287,7 +287,7 @@ export default function BorrowRequests({ onInventoryChanged }) {
       <div
         style={{
           display: "grid",
-		  gridTemplateColumns: selectedRequest && !isMobile ? "1fr 420px" : "1fr",
+          gridTemplateColumns: selectedRequest && !isMobile ? "1fr 420px" : "1fr",
           gap: 14,
           alignItems: "start",
         }}
@@ -295,186 +295,201 @@ export default function BorrowRequests({ onInventoryChanged }) {
         <div style={{ overflowX: "auto", background: theme.card, borderRadius: "12px" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-				<tr>
-					{["ID", "Student ID", "Status", "Borrow Date", "Return Date", "Created At"].map((h) => (
-						<th key={h} style={th}>
-							{h}
-						</th>
-					))}
-				</tr>
-			</thead>
-
-          <tbody>
-            {filteredRequests.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: 15, textAlign: "center" }}>
-                  {loading ? "Loading…" : "No borrow requests found"}
-                </td>
+                {[
+                  "ID",
+                  "Student ID",
+                  "Section",
+                  "Status",
+                  "Borrow Date",
+                  "Return Date",
+                  "Created At",
+                ].map((h) => (
+                  <th key={h} style={th}>
+                    {h}
+                  </th>
+                ))}
               </tr>
-            ) : (
-              filteredRequests.map((r) => {
-                const isSelected = selectedRequest?.id === r.id;
-                return (
-                  <tr
-                    key={r.id}
-                    onClick={() => handleSelectRequest(r)}
-                    style={{
-                      cursor: "pointer",
-                      background: isSelected
-							? (isDark ? "rgba(255,255,255,0.08)" : "#dbe7f7")
-							: theme.card,
-                      transition: "background 0.2s ease",
-                    }}
-                  >
-                    <td style={tdTheme}>{r.id}</td>
-                    <td style={tdTheme}>{r.student_school_id || r.student_id}</td>
-                    <td style={tdTheme}>{r.status}</td>
-                    <td style={tdTheme}>{String(r.borrow_date || "").slice(0, 10)}</td>
-                    <td style={tdTheme}>
-                      {String(r.status || "").toLowerCase() === "returned"
-                        ? String(r.returned_at || "").slice(0, 10)
-                        : "—"}
-                    </td>
-                    <td style={tdTheme}>{formatDateTime12(r.created_at)}</td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-		</div>
+            </thead>
 
-		{/* Desktop-only right-side details panel */}
-        {selectedRequest && !isMobile && (
-          <div
-            style={{
-              border: `1px solid ${theme.border}`,
-              borderRadius: 12,
-              padding: 14,
-              background: theme.card,
-              color: theme.text,
-              boxShadow: "0 6px 18px rgba(13,71,161,0.08)",
-              position: "sticky",
-              top: 90,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <div>
-                <div style={{ fontWeight: 900, fontSize: 16 }}>Request #{selectedRequest.id}</div>
-                <div style={{ opacity: 0.8, marginTop: 2 }}>
-                  Student: <span style={{ fontWeight: 800 }}>{selectedRequest.student_school_id || selectedRequest.student_id}</span>
+            <tbody>
+              {filteredRequests.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: 15, textAlign: "center" }}>
+                    {loading ? "Loading…" : "No borrow requests found"}
+                  </td>
+                </tr>
+              ) : (
+                filteredRequests.map((r) => {
+                  const isSelected = selectedRequest?.id === r.id;
+                  return (
+                    <tr
+                      key={r.id}
+                      onClick={() => handleSelectRequest(r)}
+                      style={{
+                        cursor: "pointer",
+                        background: isSelected
+                          ? isDark
+                            ? "rgba(255,255,255,0.08)"
+                            : "#dbe7f7"
+                          : theme.card,
+                        transition: "background 0.2s ease",
+                      }}
+                    >
+                      <td style={tdTheme}>{r.id}</td>
+                      <td style={tdTheme}>{r.student_school_id || r.student_id}</td>
+                      <td style={tdTheme}>{r.student_section || "—"}</td>
+                      <td style={tdTheme}>{r.status}</td>
+                      <td style={tdTheme}>{String(r.borrow_date || "").slice(0, 10)}</td>
+                      <td style={tdTheme}>
+                        {String(r.status || "").toLowerCase() === "returned"
+                          ? String(r.returned_at || "").slice(0, 10)
+                          : "—"}
+                      </td>
+                      <td style={tdTheme}>{formatDateTime12(r.created_at)}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+      {/* Desktop-only right-side details panel */}
+      {selectedRequest && !isMobile && (
+        <div
+          style={{
+            border: `1px solid ${theme.border}`,
+            borderRadius: 12,
+            padding: 14,
+            background: theme.card,
+            color: theme.text,
+            boxShadow: "0 6px 18px rgba(13,71,161,0.08)",
+            position: "sticky",
+            top: 90,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 16 }}>Request #{selectedRequest.id}</div>
+              <div style={{ opacity: 0.8, marginTop: 2 }}>
+                Student: <span style={{ fontWeight: 800 }}>{selectedRequest.student_school_id || selectedRequest.student_id}</span>
+              </div>
+              <div style={{ opacity: 0.8, marginTop: 2 }}>
+                Section: <span style={{ fontWeight: 800 }}>{selectedRequest.student_section || "—"}</span>
+              </div>
+              <div style={{ opacity: 0.8, marginTop: 2 }}>
+                Status: <span style={{ fontWeight: 800 }}>{selectedRequest.status}</span>
+              </div>
+            </div>
+
+            <button
+              style={btn}
+              onClick={closeSelected}
+            >
+              Close
+            </button>
+          </div>
+
+          <hr style={{ borderColor: theme.border, margin: "12px 0" }} />
+
+          <div style={{ fontWeight: 900, marginBottom: 10 }}>Items</div>
+
+          {loadingItems ? (
+            <div style={{ opacity: 0.8 }}>Loading…</div>
+          ) : selectedItems.length === 0 ? (
+            <div style={{ opacity: 0.8 }}>No items</div>
+          ) : (
+            <div style={{ display: "grid", gap: 8 }}>
+              {selectedItems.map((it) => (
+                <div
+                  key={it.id}
+                  style={{
+                    padding: 10,
+                    borderRadius: 10,
+                    border: `1px solid ${theme.border}`,
+                    background: isDark ? "rgba(255,255,255,0.04)" : "#f8fbff",
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>{it.item_name}</div>
+                  <div style={{ opacity: 0.8, marginTop: 2, fontSize: 13 }}>
+                    Code: <span style={{ fontWeight: 700 }}>{it.item_code}</span>
+                    {it.category ? (
+                      <>
+                        {" "}
+                        • Category: <span style={{ fontWeight: 700 }}>{it.category}</span>
+                      </>
+                    ) : null}
+                  </div>
+                  <div style={{ marginTop: 6, fontWeight: 800 }}>Qty: {it.quantity}</div>
                 </div>
-                <div style={{ opacity: 0.8, marginTop: 2 }}>
-                  Status: <span style={{ fontWeight: 800 }}>{selectedRequest.status}</span>
-                </div>
+              ))}
+            </div>
+          )}
+
+          <hr style={{ borderColor: "#e0e6ef", margin: "12px 0" }} />
+
+          {String(selectedRequest.status || "").toLowerCase() === "pending" && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                style={btnApprove}
+                onClick={() => handleSetStatus(selectedRequest.id, "approved")}
+              >
+                Approve
+              </button>
+              <button
+                style={btnReject}
+                onClick={() => handleSetStatus(selectedRequest.id, "rejected")}
+              >
+                Reject
+              </button>
+            </div>
+          )}
+
+          {String(selectedRequest.status || "").toLowerCase() === "approved" && (
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ display: "grid", gap: 6 }}>
+                <label style={{ opacity: 0.85, fontWeight: 700 }}>Condition notes (optional)</label>
+                <textarea
+                  value={conditionNotes}
+                  onChange={(e) => setConditionNotes(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: "100%",
+                    borderRadius: 8,
+                    border: `1px solid ${theme.border}`,
+                    padding: 10,
+                    resize: "vertical",
+                    fontFamily: "inherit",
+                    background: isDark ? "rgba(255,255,255,0.06)" : "#ffffff",
+                    color: theme.text,
+                  }}
+                />
               </div>
 
               <button
-                style={btn}
-				onClick={closeSelected}
+                style={btnReturn}
+                onClick={() => handleReturn(selectedRequest.id)}
               >
-                Close
+                Mark Returned
               </button>
             </div>
+          )}
 
-            <hr style={{ borderColor: theme.border, margin: "12px 0" }} />
+          {String(selectedRequest.status || "").toLowerCase() === "returned" && (
+            <div style={{ opacity: 0.8, fontWeight: 700 }}>
+              This request is already marked as returned.
+            </div>
+          )}
 
-            <div style={{ fontWeight: 900, marginBottom: 10 }}>Items</div>
-
-            {loadingItems ? (
-              <div style={{ opacity: 0.8 }}>Loading…</div>
-            ) : selectedItems.length === 0 ? (
-              <div style={{ opacity: 0.8 }}>No items</div>
-            ) : (
-              <div style={{ display: "grid", gap: 8 }}>
-                {selectedItems.map((it) => (
-                  <div
-                    key={it.id}
-                    style={{
-                      padding: 10,
-                      borderRadius: 10,
-                      border: `1px solid ${theme.border}`,
-                      background: isDark ? "rgba(255,255,255,0.04)" : "#f8fbff",
-                    }}
-                  >
-                    <div style={{ fontWeight: 900 }}>{it.item_name}</div>
-                    <div style={{ opacity: 0.8, marginTop: 2, fontSize: 13 }}>
-                      Code: <span style={{ fontWeight: 700 }}>{it.item_code}</span>
-                      {it.category ? (
-                        <>
-                          {" "}• Category: <span style={{ fontWeight: 700 }}>{it.category}</span>
-                        </>
-                      ) : null}
-                    </div>
-                    <div style={{ marginTop: 6, fontWeight: 800 }}>Qty: {it.quantity}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <hr style={{ borderColor: "#e0e6ef", margin: "12px 0" }} />
-
-            {String(selectedRequest.status || "").toLowerCase() === "pending" && (
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  style={btnApprove}
-                  onClick={() => handleSetStatus(selectedRequest.id, "approved")}
-                >
-                  Approve
-                </button>
-                <button
-                  style={btnReject}
-                  onClick={() => handleSetStatus(selectedRequest.id, "rejected")}
-                >
-                  Reject
-                </button>
-              </div>
-            )}
-
-            {String(selectedRequest.status || "").toLowerCase() === "approved" && (
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={{ display: "grid", gap: 6 }}>
-                  <label style={{ opacity: 0.85, fontWeight: 700 }}>Condition notes (optional)</label>
-                  <textarea
-                    value={conditionNotes}
-                    onChange={(e) => setConditionNotes(e.target.value)}
-                    rows={3}
-                    style={{
-                      width: "100%",
-                      borderRadius: 8,
-                      border: `1px solid ${theme.border}`,
-                      padding: 10,
-                      resize: "vertical",
-                      fontFamily: "inherit",
-						background: isDark ? "rgba(255,255,255,0.06)" : "#ffffff",
-						color: theme.text,
-                    }}
-                  />
-                </div>
-
-                <button
-                  style={btnReturn}
-                  onClick={() => handleReturn(selectedRequest.id)}
-                >
-                  Mark Returned
-                </button>
-              </div>
-            )}
-
-            {String(selectedRequest.status || "").toLowerCase() === "returned" && (
-              <div style={{ opacity: 0.8, fontWeight: 700 }}>
-                This request is already marked as returned.
-              </div>
-            )}
-
-            {String(selectedRequest.status || "").toLowerCase() === "rejected" && (
-              <div style={{ opacity: 0.8, fontWeight: 700 }}>
-                This request was rejected.
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          {String(selectedRequest.status || "").toLowerCase() === "rejected" && (
+            <div style={{ opacity: 0.8, fontWeight: 700 }}>
+              This request was rejected.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
 
 		{/* Mobile-only modal details panel */}
 		{selectedRequest && isMobile && (
@@ -524,6 +539,9 @@ export default function BorrowRequests({ onInventoryChanged }) {
 							<div style={{ fontWeight: 900, fontSize: 16 }}>Request #{selectedRequest.id}</div>
 							<div style={{ opacity: 0.85, marginTop: 2, fontSize: 13 }}>
 								Student: <span style={{ fontWeight: 800 }}>{selectedRequest.student_school_id || selectedRequest.student_id}</span>
+							</div>
+							<div style={{ opacity: 0.85, marginTop: 2, fontSize: 13 }}>
+								Section: <span style={{ fontWeight: 800 }}>{selectedRequest.student_section || "—"}</span>
 							</div>
 							<div style={{ opacity: 0.85, marginTop: 2, fontSize: 13 }}>
 								Status: <span style={{ fontWeight: 800 }}>{selectedRequest.status}</span>

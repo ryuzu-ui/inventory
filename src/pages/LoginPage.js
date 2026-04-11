@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [loginValue, setLoginValue] = useState("");
   const [fullName, setFullName] = useState("");
   const [idNumber, setIdNumber] = useState("");
+  const [section, setSection] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
@@ -66,6 +67,11 @@ export default function LoginPage() {
         return;
       }
 
+      if (!section.trim()) {
+        toast.push({ type: "warning", title: "Missing information", description: "Section is required." });
+        return;
+      }
+
       if (signUpRole === "admin" && !adminPasscode.trim()) {
         toast.push({ type: "warning", title: "Missing information", description: "Admin passcode is required for admin signup." });
         return;
@@ -73,6 +79,7 @@ export default function LoginPage() {
 
       const user = await register(fullName, email, password, {
         school_id: idNumber,
+        section,
         role: signUpRole,
         admin_secret: signUpRole === "admin" ? adminPasscode : undefined,
       });
@@ -149,6 +156,13 @@ export default function LoginPage() {
               placeholder="ID Number"
               value={idNumber}
               onChange={(e) => setIdNumber(e.target.value)}
+              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+            />
+
+            <input
+              placeholder="Section"
+              value={section}
+              onChange={(e) => setSection(e.target.value)}
               style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
             />
 

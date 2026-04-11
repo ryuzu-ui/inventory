@@ -2,11 +2,18 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from apii import reply, reload_faq
 import json
+import os
 
 app = Flask(__name__)
-CORS(app)
 
-FAQ_FILE = "faq.json"
+cors_origins = os.environ.get("CORS_ORIGINS", "").strip()
+if cors_origins:
+	CORS(app, origins=[o.strip() for o in cors_origins.split(",") if o.strip()])
+else:
+	CORS(app)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FAQ_FILE = os.path.join(BASE_DIR, "faq.json")
 
 
 @app.route("/chat", methods=["POST"])
@@ -85,4 +92,5 @@ def delete_faq(index):
 
 
 if __name__ == "__main__":
-	app.run(port=5001)
+	port = int(os.environ.get("PORT", "5001"))
+	app.run(host="0.0.0.0", port=port)

@@ -8,6 +8,7 @@ export async function login(email, password) {
     ...user,
     role: String(user.role || "student").toLowerCase(),
     school_id: user.school_id, // include school_id
+    section: user.section,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   return normalized;
@@ -21,6 +22,7 @@ export async function register(full_name, email, password, options = {}) {
     ...user,
     role: String(user.role || "student").toLowerCase(),
     school_id: user.school_id, // include school_id
+    section: user.section,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
   return normalized;

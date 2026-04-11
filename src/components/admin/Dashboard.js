@@ -346,6 +346,7 @@ export default function Dashboard() {
             <thead>
               <tr>
                 <th style={ui.th}>Requested By</th>
+                <th style={ui.th}>Section</th>
                 <th style={ui.th}>Room</th>
                 <th style={ui.th}>Date</th>
                 <th style={ui.th}>Time</th>
@@ -357,7 +358,7 @@ export default function Dashboard() {
             <tbody>
               {reservations.length === 0 ? (
                 <tr>
-                  <td colSpan="6" style={styles.emptyRow}>
+                  <td colSpan="7" style={styles.emptyRow}>
                     No pending reservations
                   </td>
                 </tr>
@@ -367,6 +368,8 @@ export default function Dashboard() {
                     <td style={ui.td}>
                       {r.reserved_by_name || `User #${r.reserved_by}`}
                     </td>
+
+                    <td style={ui.td}>{r.reserved_by_section || "—"}</td>
 
                     <td style={ui.td}>{r.room_name}</td>
 
