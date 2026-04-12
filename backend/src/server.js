@@ -115,6 +115,17 @@ async function ensureNotificationsTable() {
     );
   `);
 
+  // If the table already existed from an older version, it may be missing columns.
+  // These ALTERs are safe/no-op when the columns already exist.
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS user_id INT NULL;`);
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'info';`);
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';`);
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT '';`);
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS entity_type TEXT NULL;`);
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS entity_id INT NULL;`);
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS "read" BOOLEAN NOT NULL DEFAULT FALSE;`);
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();`);
+
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_notifications_user_created
     ON public.notifications(user_id, created_at DESC);
