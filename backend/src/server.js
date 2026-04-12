@@ -107,6 +107,7 @@ async function ensureNotificationsTable() {
       user_id INT NULL REFERENCES public.users(id) ON DELETE SET NULL,
       type TEXT NOT NULL DEFAULT 'info',
       title TEXT NOT NULL,
+      message TEXT NOT NULL DEFAULT '',
       body TEXT NOT NULL DEFAULT '',
       entity_type TEXT NULL,
       entity_id INT NULL,
@@ -120,6 +121,7 @@ async function ensureNotificationsTable() {
   await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS user_id INT NULL;`);
   await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'info';`);
   await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';`);
+  await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS message TEXT NOT NULL DEFAULT '';`);
   await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT '';`);
   await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS entity_type TEXT NULL;`);
   await pool.query(`ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS entity_id INT NULL;`);
@@ -178,19 +180,45 @@ async function createNotification({
   entity_id = null,
 }) {
   const uid = Number(user_id);
-  if (!Number.isInteger(uid) || uid <= 0) return null;
-  if (!title) return null;
+  if (!Number.isInteger(uid) || uid <= 0) {
+    console.warn("Notifications: skipped createNotification due to invalid user_id:", user_id);
+    return null;
+  }
+  if (!title) {
+    console.warn("Notifications: skipped createNotification due to missing title (user_id):", uid);
+    return null;
+  }
 
   await ensureNotificationsTable();
 
-  const inserted = await pool.query(
-    `
-    INSERT INTO public.notifications (user_id, type, title, body, entity_type, entity_id)
-    VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id, user_id, type, title, body, entity_type, entity_id, "read", created_at
-    `,
-    [uid, String(type || "info"), String(title), String(body || ""), entity_type, entity_id]
-  );
+  let inserted;
+  try {
+    inserted = await pool.query(
+      `
+      INSERT INTO public.notifications (user_id, type, title, message, body, entity_type, entity_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, user_id, type, title, message, body, entity_type, entity_id, "read", created_at
+      `,
+      [
+        uid,
+        String(type || "info"),
+        String(title),
+        String(body || ""),
+        String(body || ""),
+        entity_type,
+        entity_id,
+      ]
+    );
+  } catch (err) {
+    console.error(
+      "Notifications: insert failed:",
+      err.message,
+      err.code,
+      "payload=",
+      { user_id: uid, type, title, body, entity_type, entity_id }
+    );
+    throw err;
+  }
 
   const row = inserted.rows[0] || null;
   if (row) {
@@ -418,7 +446,6 @@ app.get("/api/problem-reports", requireAdminKey, async (req, res) => {
 });
 
 // --------------------
-// NOTIFICATIONS (STUDENT INBOX)
 // --------------------
 
 // Student: list notifications
@@ -436,7 +463,7 @@ app.get("/api/notifications", async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT id, user_id, type, title, body, entity_type, entity_id, "read", created_at
+      SELECT id, user_id, type, title, message, body, entity_type, entity_id, "read", created_at
       FROM public.notifications
       WHERE user_id = $1
       ORDER BY created_at DESC, id DESC
@@ -467,7 +494,7 @@ app.patch("/api/notifications/:id/read", async (req, res) => {
       UPDATE public.notifications
       SET "read" = TRUE
       WHERE id = $1
-      RETURNING id, user_id, type, title, body, entity_type, entity_id, "read", created_at
+      RETURNING id, user_id, type, title, message, body, entity_type, entity_id, "read", created_at
       `,
       [id]
     );
