@@ -110,7 +110,7 @@ async function ensureNotificationsTable() {
       body TEXT NOT NULL DEFAULT '',
       entity_type TEXT NULL,
       entity_id INT NULL,
-      read BOOLEAN NOT NULL DEFAULT FALSE,
+      "read" BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
@@ -176,7 +176,7 @@ async function createNotification({
     `
     INSERT INTO public.notifications (user_id, type, title, body, entity_type, entity_id)
     VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id, user_id, type, title, body, entity_type, entity_id, read, created_at
+    RETURNING id, user_id, type, title, body, entity_type, entity_id, "read", created_at
     `,
     [uid, String(type || "info"), String(title), String(body || ""), entity_type, entity_id]
   );
@@ -407,7 +407,7 @@ app.get("/api/problem-reports", requireAdminKey, async (req, res) => {
 });
 
 // --------------------
-// ✅ NOTIFICATIONS (STUDENT INBOX)
+// NOTIFICATIONS (STUDENT INBOX)
 // --------------------
 
 // Student: list notifications
@@ -425,7 +425,7 @@ app.get("/api/notifications", async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT id, user_id, type, title, body, entity_type, entity_id, read, created_at
+      SELECT id, user_id, type, title, body, entity_type, entity_id, "read", created_at
       FROM public.notifications
       WHERE user_id = $1
       ORDER BY created_at DESC, id DESC
@@ -454,9 +454,9 @@ app.patch("/api/notifications/:id/read", async (req, res) => {
     const updated = await pool.query(
       `
       UPDATE public.notifications
-      SET read = TRUE
+      SET "read" = TRUE
       WHERE id = $1
-      RETURNING id, user_id, type, title, body, entity_type, entity_id, read, created_at
+      RETURNING id, user_id, type, title, body, entity_type, entity_id, "read", created_at
       `,
       [id]
     );
@@ -484,7 +484,7 @@ app.patch("/api/notifications/read-all", async (req, res) => {
     }
 
     await pool.query(
-      `UPDATE public.notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE`,
+      `UPDATE public.notifications SET "read" = TRUE WHERE user_id = $1 AND "read" = FALSE`,
       [userId]
     );
 
