@@ -100,6 +100,94 @@ async function ensureProblemReportsTable() {
   `);
 }
 
+async function ensureNotificationsTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.notifications (
+      id SERIAL PRIMARY KEY,
+      user_id INT NULL REFERENCES public.users(id) ON DELETE SET NULL,
+      type TEXT NOT NULL DEFAULT 'info',
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      entity_type TEXT NULL,
+      entity_id INT NULL,
+      read BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+    ON public.notifications(user_id, created_at DESC);
+  `);
+}
+
+// Startup: create notifications table/index (non-breaking)
+ensureNotificationsTable().catch((err) => {
+  console.error("❌ Failed to ensure notifications table:", err.message, err.code);
+});
+
+// SSE connections per user
+const notificationClients = new Map(); // userId -> Set(res)
+
+function addNotificationClient(userId, res) {
+  const key = String(userId);
+  const set = notificationClients.get(key) || new Set();
+  set.add(res);
+  notificationClients.set(key, set);
+}
+
+function removeNotificationClient(userId, res) {
+  const key = String(userId);
+  const set = notificationClients.get(key);
+  if (!set) return;
+  set.delete(res);
+  if (set.size === 0) notificationClients.delete(key);
+}
+
+function broadcastNotification(userId, payload) {
+  const key = String(userId);
+  const set = notificationClients.get(key);
+  if (!set || set.size === 0) return;
+  const data = `data: ${JSON.stringify(payload)}\n\n`;
+  for (const res of set) {
+    try {
+      res.write(data);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function createNotification({
+  user_id,
+  type = "info",
+  title,
+  body = "",
+  entity_type = null,
+  entity_id = null,
+}) {
+  const uid = Number(user_id);
+  if (!Number.isInteger(uid) || uid <= 0) return null;
+  if (!title) return null;
+
+  await ensureNotificationsTable();
+
+  const inserted = await pool.query(
+    `
+    INSERT INTO public.notifications (user_id, type, title, body, entity_type, entity_id)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING id, user_id, type, title, body, entity_type, entity_id, read, created_at
+    `,
+    [uid, String(type || "info"), String(title), String(body || ""), entity_type, entity_id]
+  );
+
+  const row = inserted.rows[0] || null;
+  if (row) {
+    broadcastNotification(uid, row);
+  }
+  return row;
+}
+
 // --------------------
 // ✅ AUTH ROUTES
 // --------------------
@@ -319,6 +407,134 @@ app.get("/api/problem-reports", requireAdminKey, async (req, res) => {
 });
 
 // --------------------
+// ✅ NOTIFICATIONS (STUDENT INBOX)
+// --------------------
+
+// Student: list notifications
+// Query: ?userId=123
+app.get("/api/notifications", async (req, res) => {
+  try {
+    await ensureNotificationsTable();
+
+    const userId = Number(req.query.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: "Invalid userId" });
+    }
+
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 30)));
+
+    const result = await pool.query(
+      `
+      SELECT id, user_id, type, title, body, entity_type, entity_id, read, created_at
+      FROM public.notifications
+      WHERE user_id = $1
+      ORDER BY created_at DESC, id DESC
+      LIMIT $2
+      `,
+      [userId, limit]
+    );
+
+    return res.json(result.rows);
+  } catch (err) {
+    console.error("Notifications list error:", err.message, err.code);
+    return res.status(500).json({ error: "Failed to load notifications" });
+  }
+});
+
+// Student: mark one notification as read
+app.patch("/api/notifications/:id/read", async (req, res) => {
+  try {
+    await ensureNotificationsTable();
+
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid notification id" });
+    }
+
+    const updated = await pool.query(
+      `
+      UPDATE public.notifications
+      SET read = TRUE
+      WHERE id = $1
+      RETURNING id, user_id, type, title, body, entity_type, entity_id, read, created_at
+      `,
+      [id]
+    );
+
+    if (updated.rows.length === 0) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+
+    return res.json(updated.rows[0]);
+  } catch (err) {
+    console.error("Notification mark read error:", err.message, err.code);
+    return res.status(500).json({ error: "Failed to update notification" });
+  }
+});
+
+// Student: mark all notifications as read
+// Body: { userId }
+app.patch("/api/notifications/read-all", async (req, res) => {
+  try {
+    await ensureNotificationsTable();
+
+    const userId = Number(req.body?.userId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: "Invalid userId" });
+    }
+
+    await pool.query(
+      `UPDATE public.notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE`,
+      [userId]
+    );
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Notifications read-all error:", err.message, err.code);
+    return res.status(500).json({ error: "Failed to update notifications" });
+  }
+});
+
+// Student: live stream via Server-Sent Events
+// Query: ?userId=123
+app.get("/api/notifications/stream", async (req, res) => {
+  const userId = Number(req.query.userId);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ error: "Invalid userId" });
+  }
+
+  // SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  // Flush headers immediately
+  try {
+    res.flushHeaders?.();
+  } catch {
+    // ignore
+  }
+
+  addNotificationClient(userId, res);
+
+  // initial hello event (keeps some proxies happy)
+  res.write(`data: ${JSON.stringify({ ok: true })}\n\n`);
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(`data: ${JSON.stringify({ ping: true })}\n\n`);
+    } catch {
+      // ignore
+    }
+  }, 25000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    removeNotificationClient(userId, res);
+  });
+});
+
+// --------------------
 // ✅ LAB ROOMS
 // -------------------- 
 app.get("/api/lab-rooms", async (req, res) => {
@@ -519,23 +735,31 @@ app.patch("/api/room-reservations/:id/status", requireAdminKey, async (req, res)
       return res.status(400).json({ error: "Invalid status" });
     }
 
+    const detailsRes = await pool.query(
+      `
+      SELECT
+        rr.id,
+        rr.lab_room_id,
+        lr.room_name,
+        rr.reservation_date,
+        rr.start_time,
+        rr.end_time,
+        rr.reserved_by
+      FROM public.room_reservations rr
+      LEFT JOIN public.lab_rooms lr ON rr.lab_room_id = lr.id
+      WHERE rr.id = $1
+      LIMIT 1
+      `,
+      [id]
+    );
+
+    if (detailsRes.rows.length === 0) {
+      return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    const rr = detailsRes.rows[0];
+
     if (statusLower === "approved") {
-      const detailsRes = await pool.query(
-        `
-        SELECT id, lab_room_id, reservation_date, start_time, end_time
-        FROM public.room_reservations
-        WHERE id = $1
-        LIMIT 1
-        `,
-        [id]
-      );
-
-      if (detailsRes.rows.length === 0) {
-        return res.status(404).json({ error: "Reservation not found" });
-      }
-
-      const rr = detailsRes.rows[0];
-
       const expired = await pool.query(
         `
         SELECT 1
@@ -586,6 +810,29 @@ app.patch("/api/room-reservations/:id/status", requireAdminKey, async (req, res)
 
     if (updated.rows.length === 0) {
       return res.status(404).json({ error: "Reservation not found" });
+    }
+
+    if (["approved", "rejected", "cancelled"].includes(statusLower)) {
+      const roomLabel = rr.room_name || `Room ${rr.lab_room_id}`;
+      const dateLabel = rr.reservation_date ? String(rr.reservation_date).slice(0, 10) : "";
+      const startLabel = rr.start_time ? String(rr.start_time).slice(0, 5) : "";
+      const endLabel = rr.end_time ? String(rr.end_time).slice(0, 5) : "";
+
+      const title = `Room reservation ${statusLower}`;
+      const body = `${roomLabel} • ${dateLabel} • ${startLabel}-${endLabel}`;
+
+      try {
+        await createNotification({
+          user_id: rr.reserved_by,
+          type: statusLower === "approved" ? "success" : "warning",
+          title,
+          body,
+          entity_type: "room_reservation",
+          entity_id: rr.id,
+        });
+      } catch (e) {
+        console.error("Failed to create room reservation notification:", e?.message);
+      }
     }
 
     res.json(updated.rows[0]);
@@ -1121,6 +1368,26 @@ app.patch("/api/borrow-requests/:id/status", requireAdminKey, async (req, res) =
     );
 
     await client.query("COMMIT");
+
+    try {
+      const row = updated.rows[0];
+      const title = `Borrow request ${statusLower}`;
+      const borrowLabel = row?.borrow_date ? String(row.borrow_date).slice(0, 10) : "";
+      const returnLabel = row?.return_date ? String(row.return_date).slice(0, 10) : "";
+      const body = `Request #${row?.id}${borrowLabel ? ` • Borrow: ${borrowLabel}` : ""}${returnLabel ? ` • Return: ${returnLabel}` : ""}`;
+
+      await createNotification({
+        user_id: row?.student_id,
+        type: statusLower === "approved" ? "success" : "warning",
+        title,
+        body,
+        entity_type: "borrow_request",
+        entity_id: row?.id,
+      });
+    } catch (e) {
+      console.error("Failed to create borrow request notification:", e?.message);
+    }
+
     res.json(updated.rows[0]);
   } catch (err) {
     try {

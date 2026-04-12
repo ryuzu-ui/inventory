@@ -283,6 +283,48 @@ export async function returnBorrowRequest(id, { user_id, condition_notes }) {
 }
 
 // --------------------
+// NOTIFICATIONS (STUDENT)
+// --------------------
+export async function getNotifications({ userId, limit } = {}) {
+  const params = new URLSearchParams();
+  if (userId) params.set("userId", String(userId));
+  if (limit) params.set("limit", String(limit));
+
+  const url = `${API_BASE}/api/notifications?${params}`;
+  const res = await fetch(url);
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to load notifications");
+  return Array.isArray(data) ? data : [];
+}
+
+export async function markNotificationRead(id) {
+  const res = await fetch(`${API_BASE}/api/notifications/${id}/read`, {
+    method: "PATCH",
+  });
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to mark notification as read");
+  return data;
+}
+
+export async function markAllNotificationsRead({ userId }) {
+  const res = await fetch(`${API_BASE}/api/notifications/read-all`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to mark notifications as read");
+  return data;
+}
+
+export function openNotificationsStream({ userId }) {
+  const url = `${API_BASE}/api/notifications/stream?userId=${encodeURIComponent(
+    String(userId)
+  )}`;
+  return new EventSource(url);
+}
+
+// --------------------
 // PROBLEM REPORTS
 // --------------------
 export async function submitProblemReport({ student_id, message }) {

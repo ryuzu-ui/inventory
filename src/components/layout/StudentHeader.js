@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { getUser, logout } from "../services/authService";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,10 @@ import {
     getBorrowRequests,
     getBorrowRequestItems,
     submitProblemReport,
+    getNotifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    openNotificationsStream,
 } from "../../helper/api";
 
 export default function StudentHeader({ onMenuClick }) {
@@ -16,6 +20,11 @@ export default function StudentHeader({ onMenuClick }) {
 	const [isMobile, setIsMobile] = useState(
 		typeof window !== "undefined" ? window.innerWidth <= 768 : false
 	);
+
+    const [notifOpen, setNotifOpen] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [notifLoading, setNotifLoading] = useState(false);
+    const [notifError, setNotifError] = useState("");
 
     const [borrowRequests, setBorrowRequests] = useState([]);
     const [borrowLoading, setBorrowLoading] = useState(false);
@@ -31,12 +40,16 @@ export default function StudentHeader({ onMenuClick }) {
     const navigate = useNavigate();
 
     const profileRef = useRef(null);
+    const notifRef = useRef(null);
     const { theme, themeName, toggleTheme } = useTheme();
 
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (profileRef.current && !profileRef.current.contains(e.target)) {
                 setShowProfile(false);
+            }
+            if (notifRef.current && !notifRef.current.contains(e.target)) {
+                setNotifOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
@@ -48,6 +61,80 @@ export default function StudentHeader({ onMenuClick }) {
 		window.addEventListener("resize", onResize);
 		return () => window.removeEventListener("resize", onResize);
 	}, []);
+
+    const unreadCount = useMemo(() => {
+        return (notifications || []).filter((n) => !n?.read).length;
+    }, [notifications]);
+
+    const loadNotifications = useCallback(async () => {
+        if (!user?.id) {
+            setNotifications([]);
+            setNotifError("Not logged in.");
+            return;
+        }
+
+        setNotifLoading(true);
+        setNotifError("");
+        try {
+            const rows = await getNotifications({ userId: user.id, limit: 30 });
+            setNotifications(Array.isArray(rows) ? rows : []);
+        } catch (e) {
+            setNotifications([]);
+            setNotifError(e?.message || "Failed to load notifications");
+        } finally {
+            setNotifLoading(false);
+        }
+    }, [user?.id]);
+
+    useEffect(() => {
+        // initial load (once per login)
+        loadNotifications();
+    }, [loadNotifications]);
+
+    useEffect(() => {
+        // live stream
+        if (!user?.id) return;
+
+        const es = openNotificationsStream({ userId: user.id });
+
+        es.onmessage = (evt) => {
+            try {
+                const payload = JSON.parse(evt?.data || "{}");
+                if (!payload || payload.ping || payload.ok) return;
+                // prepend new notif
+                setNotifications((prev) => {
+                    const arr = Array.isArray(prev) ? prev : [];
+                    // de-dupe by id
+                    if (arr.some((x) => x?.id === payload.id)) return arr;
+                    return [payload, ...arr].slice(0, 30);
+                });
+                toast.push({
+                    type: payload.type === "success" ? "success" : "info",
+                    title: payload.title || "Notification",
+                    description: payload.body || "",
+                    durationMs: 2500,
+                });
+            } catch {
+                // ignore
+            }
+        };
+
+        es.onerror = () => {
+            try {
+                es.close();
+            } catch {
+                // ignore
+            }
+        };
+
+        return () => {
+            try {
+                es.close();
+            } catch {
+                // ignore
+            }
+        };
+    }, [toast, user?.id]);
 
     useEffect(() => {
         let cancelled = false;
@@ -95,10 +182,49 @@ export default function StudentHeader({ onMenuClick }) {
     const openPanel = (panel) => {
         setActivePanel(panel);
         setShowProfile(false);
+        setNotifOpen(false);
     };
 
     const closePanel = () => {
         setActivePanel(null);
+    };
+
+    const handleToggleNotif = async () => {
+        const next = !notifOpen;
+        setNotifOpen(next);
+        setShowProfile(false);
+
+        if (next) {
+            await loadNotifications();
+        }
+    };
+
+    const handleNotifClick = async (n) => {
+        if (!n?.id) return;
+        if (!n?.read) {
+            try {
+                await markNotificationRead(n.id);
+                setNotifications((prev) =>
+                    (Array.isArray(prev) ? prev : []).map((x) => (x?.id === n.id ? { ...x, read: true } : x))
+                );
+            } catch {
+                // ignore
+            }
+        }
+    };
+
+    const handleMarkAllRead = async () => {
+        if (!user?.id) return;
+        try {
+            await markAllNotificationsRead({ userId: user.id });
+            setNotifications((prev) => (Array.isArray(prev) ? prev : []).map((x) => ({ ...x, read: true })));
+        } catch (e) {
+            toast.push({
+                type: "error",
+                title: "Failed",
+                description: e?.message || "Failed to mark all as read",
+            });
+        }
     };
 
     const handleReportSubmit = async () => {
@@ -169,8 +295,147 @@ export default function StudentHeader({ onMenuClick }) {
                     <b style={{ color: theme.headerText }}>Student Borrowing Portal</b>
                 </div>
 
-                {/* AVATAR */}
-                <div ref={profileRef} style={{ position: "relative" }}>
+                {/* RIGHT */}
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+
+                    {/* NOTIFICATIONS */}
+                    <div ref={notifRef} style={{ position: "relative" }}>
+                        <button
+                            onClick={handleToggleNotif}
+                            aria-label="Notifications"
+                            style={{
+                                position: "relative",
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "10px",
+                                border: `1px solid ${theme.border}`,
+                                background: "transparent",
+                                color: theme.headerText,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 0,
+                            }}
+                        >
+                            <span style={{ fontSize: "18px", lineHeight: 1 }}>🔔</span>
+                            {unreadCount > 0 ? (
+                                <span
+                                    style={{
+                                        position: "absolute",
+                                        top: "-4px",
+                                        right: "-4px",
+                                        minWidth: "18px",
+                                        height: "18px",
+                                        padding: "0 5px",
+                                        borderRadius: "999px",
+                                        background: "#dc2626",
+                                        color: "#fff",
+                                        fontSize: "11px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontWeight: 700,
+                                        border: `2px solid ${theme.header}`,
+                                        boxSizing: "border-box",
+                                    }}
+                                >
+                                    {unreadCount > 99 ? "99+" : unreadCount}
+                                </span>
+                            ) : null}
+                        </button>
+
+                        {notifOpen && (
+                            <div
+                                style={{
+                                    position: "absolute",
+                                    top: "48px",
+                                    right: 0,
+                                    width: isMobile ? "85vw" : "340px",
+                                    maxWidth: "360px",
+                                    background: theme.modal,
+                                    color: theme.text,
+                                    borderRadius: "10px",
+                                    border: `1px solid ${theme.border}`,
+                                    boxShadow: "0 10px 25px rgba(0,0,0,0.18)",
+                                    zIndex: 20,
+                                    overflow: "hidden",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        padding: "10px 12px",
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        gap: "10px",
+                                        borderBottom: `1px solid ${theme.border}`,
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 700 }}>Notifications</div>
+                                    <button
+                                        onClick={handleMarkAllRead}
+                                        disabled={unreadCount === 0}
+                                        style={{
+                                            background: "transparent",
+                                            border: "none",
+                                            color: unreadCount === 0 ? "rgba(255,255,255,0.4)" : "#2563eb",
+                                            cursor: unreadCount === 0 ? "default" : "pointer",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        Mark all read
+                                    </button>
+                                </div>
+
+                                <div style={{ maxHeight: isMobile ? "55vh" : "380px", overflowY: "auto" }}>
+                                    {notifLoading ? (
+                                        <div style={{ padding: "12px", color: themeName === "dark" ? "#aaa" : "#555" }}>
+                                            Loading...
+                                        </div>
+                                    ) : notifError ? (
+                                        <div style={{ padding: "12px", color: "#c62828" }}>{notifError}</div>
+                                    ) : (notifications || []).length === 0 ? (
+                                        <div style={{ padding: "12px", color: themeName === "dark" ? "#aaa" : "#555" }}>
+                                            No notifications yet.
+                                        </div>
+                                    ) : (
+                                        (notifications || []).map((n) => (
+                                            <div
+                                                key={n.id}
+                                                onClick={() => handleNotifClick(n)}
+                                                style={{
+                                                    padding: "10px 12px",
+                                                    cursor: "pointer",
+                                                    background: n.read
+                                                        ? "transparent"
+                                                        : themeName === "dark"
+                                                        ? "rgba(37,99,235,0.16)"
+                                                        : "rgba(37,99,235,0.10)",
+                                                    borderBottom: `1px solid ${theme.border}`,
+                                                }}
+                                            >
+                                                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                                                    <div style={{ fontWeight: 700, fontSize: "13px" }}>
+                                                        {n.title || "Notification"}
+                                                    </div>
+                                                    <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                                                        {n.created_at ? String(n.created_at).replace("T", " ").slice(0, 16) : ""}
+                                                    </div>
+                                                </div>
+                                                <div style={{ marginTop: "4px", fontSize: "12px", opacity: 0.9 }}>
+                                                    {n.body}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* AVATAR */}
+                    <div ref={profileRef} style={{ position: "relative" }}>
                     <div
                         onClick={() => setShowProfile(!showProfile)}
                         style={{
@@ -244,6 +509,8 @@ export default function StudentHeader({ onMenuClick }) {
                             </div>
                         </div>
                     )}
+                </div>
+
                 </div>
             </div>
 
