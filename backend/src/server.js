@@ -1412,7 +1412,8 @@ app.patch("/api/borrow-requests/:id/status", requireAdminKey, async (req, res) =
       const title = `Borrow request ${statusLower}`;
       const borrowLabel = row?.borrow_date ? String(row.borrow_date).slice(0, 10) : "";
       const returnLabel = row?.return_date ? String(row.return_date).slice(0, 10) : "";
-      const body = `Request #${row?.id}${borrowLabel ? ` • Borrow: ${borrowLabel}` : ""}${returnLabel ? ` • Return: ${returnLabel}` : ""}`;
+      const showReturn = Boolean(returnLabel) && returnLabel !== borrowLabel;
+      const body = `Request #${row?.id}${borrowLabel ? ` • Borrow: ${borrowLabel}` : ""}${showReturn ? ` • Return: ${returnLabel}` : ""}`;
 
       await createNotification({
         user_id: row?.student_id,
