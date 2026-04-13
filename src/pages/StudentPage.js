@@ -5,12 +5,17 @@ import BorrowTable from "../components/student/BorrowTable";
 import RoomCalendarPage from "./RoomCalendarPage";
 import { useTheme } from "../context/ThemeContext";
 import ChatbotWidget from "../components/student/ChatbotWidget";
+import { getUser } from "../components/services/authService";
+import { getNotifications } from "../helper/api";
 
 export default function StudentPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState("home");
   const [notification, setNotification] = useState("");
   const { theme, setThemeScope } = useTheme();
+
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   useEffect(() => {
     document.title = "Student | Inventory System";
@@ -27,6 +32,34 @@ export default function StudentPage() {
     }
   }, [notification]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecentActivity() {
+      if (page !== "home") return;
+      const user = getUser();
+      if (!user?.id) {
+        setRecentActivity([]);
+        return;
+      }
+
+      setActivityLoading(true);
+      try {
+        const rows = await getNotifications({ userId: user.id, limit: 10 });
+        if (!cancelled) setRecentActivity(Array.isArray(rows) ? rows : []);
+      } catch {
+        if (!cancelled) setRecentActivity([]);
+      } finally {
+        if (!cancelled) setActivityLoading(false);
+      }
+    }
+
+    loadRecentActivity();
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
+
   return (
     <div
       style={{
@@ -39,9 +72,8 @@ export default function StudentPage() {
         overflowX: "hidden",
         touchAction: "pan-y"
       }}
-    >      
-  
-  <StudentHeader onMenuClick={() => setSidebarOpen(true)} />
+    >
+      <StudentHeader onMenuClick={() => setSidebarOpen(true)} />
 
       <div style={{
         position: "fixed",
@@ -127,9 +159,35 @@ export default function StudentPage() {
             <div style={activityBox(theme)}>
               <h3 style={{ marginBottom: "15px" }}>Recent Activity</h3>
               <div style={{ maxHeight: "250px", overflowY: "auto" }}>
-                <p style={{ opacity: 0.5 }}>
-                  No recent activity available.
-                </p>
+                {activityLoading ? (
+                  <p style={{ opacity: 0.6 }}>Loading...</p>
+                ) : recentActivity.length === 0 ? (
+                  <p style={{ opacity: 0.5 }}>No recent activity available.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {recentActivity.map((a) => (
+                      <div
+                        key={a.id}
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: "12px",
+                          border: `1px solid ${theme.border}`,
+                          background: a?.read ? "transparent" : "rgba(37,99,235,0.10)",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                          <div style={{ fontWeight: 700, fontSize: "13px" }}>{a.title || "Notification"}</div>
+                          <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                            {a.created_at ? String(a.created_at).replace("T", " ").slice(0, 16) : ""}
+                          </div>
+                        </div>
+                        <div style={{ marginTop: "4px", fontSize: "12px", opacity: 0.9 }}>
+                          {a.body || a.message || ""}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

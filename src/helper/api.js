@@ -84,26 +84,12 @@ export async function createReservation({
 // AUTH
 // --------------------
 export async function apiRegister({
-  full_name,
-  email,
-  password,
-  role,
-  admin_secret,
-  school_id,
-  ...extraFields
+  ...payload
 }) {
   const res = await fetch(`${API_BASE}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      full_name,
-      email,
-      password,
-      role,
-      admin_secret,
-      school_id,
-      ...extraFields,
-    }),
+    body: JSON.stringify(payload),
   });
 
   const { ok, data } = await parseJson(res);

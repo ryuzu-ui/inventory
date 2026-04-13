@@ -5,6 +5,7 @@ html, body {
   overflow-x: hidden;
   touch-action: pan-y;
   overscroll-behavior-x: none;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -13,6 +14,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
@@ -24,6 +26,89 @@ body {
 
 *, *::before, *::after {
   box-sizing: border-box;
+}
+
+:root {
+  --app-radius-sm: 8px;
+  --app-radius-md: 12px;
+  --app-shadow-md: 0 10px 25px rgba(0, 0, 0, 0.18);
+  --app-focus: 0 0 0 3px rgba(37, 99, 235, 0.35);
+
+  --app-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --app-fast: 140ms;
+  --app-med: 220ms;
+}
+
+button,
+input,
+textarea,
+select,
+a {
+  transition:
+    transform var(--app-fast) var(--app-ease),
+    box-shadow var(--app-fast) var(--app-ease),
+    background-color var(--app-fast) var(--app-ease),
+    color var(--app-fast) var(--app-ease),
+    border-color var(--app-fast) var(--app-ease),
+    opacity var(--app-fast) var(--app-ease);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: var(--app-focus);
+}
+
+/* Smooth modal/overlay animations (used by BorrowTable + any other app modals) */
+.app-backdrop {
+  animation: appFadeIn var(--app-med) var(--app-ease) both;
+}
+
+.app-modal {
+  border-radius: var(--app-radius-md);
+  box-shadow: var(--app-shadow-md);
+  animation: appPopIn var(--app-med) var(--app-ease) both;
+}
+
+@keyframes appFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes appPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html, body {
+    scroll-behavior: auto;
+  }
+
+  button,
+  input,
+  textarea,
+  select,
+  a {
+    transition: none;
+  }
+
+  .app-backdrop,
+  .app-modal {
+    animation: none;
+  }
 }
 
 img, video {

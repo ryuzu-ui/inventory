@@ -14,9 +14,11 @@ export async function login(email, password) {
   return normalized;
 }
 
-export async function register(full_name, email, password, options = {}) {
-  await apiRegister({ full_name, email, password, ...options });
+export async function register(payload = {}) {
+  await apiRegister(payload);
 
+  const email = payload?.email;
+  const password = payload?.password;
   const user = await apiLogin({ email, password });
   const normalized = {
     ...user,

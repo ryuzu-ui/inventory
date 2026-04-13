@@ -263,8 +263,8 @@ export default function BorrowTable() {
 
 			{/* MODAL */}
 			{showModal && (
-				<div style={backdrop} onClick={() => setShowModal(false)}>
-					<div style={modal} onClick={(e) => e.stopPropagation()}>
+				<div className="app-backdrop" style={backdrop} onClick={() => setShowModal(false)}>
+					<div className="app-modal" style={modal} onClick={(e) => e.stopPropagation()}>
 
 						{/* CLOSE BUTTON */}
 						<button

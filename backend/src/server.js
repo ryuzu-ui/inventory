@@ -69,6 +69,16 @@ async function ensureUsersSectionColumn() {
 }
 ensureUsersSectionColumn();
 
+async function ensureUsersNameColumns() {
+  try {
+    await pool.query(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS first_name TEXT;`);
+    await pool.query(`ALTER TABLE public.users ADD COLUMN IF NOT EXISTS last_name TEXT;`);
+  } catch (err) {
+    console.error("❌ Failed to ensure users first/last name columns:", err.message, err.code);
+  }
+}
+ensureUsersNameColumns();
+
 // --------------------
 // HELPERS
 // --------------------
@@ -236,11 +246,26 @@ async function createNotification({
 // Admin registration is allowed ONLY if admin_secret matches ADMIN_REGISTER_SECRET
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { full_name, email, password, role, admin_secret, school_id, section } = req.body;
+    const {
+      full_name,
+      first_name,
+      last_name,
+      email,
+      password,
+      role,
+      admin_secret,
+      school_id,
+      section,
+    } = req.body;
 
-    if (!full_name || !email || !password || !school_id) {
+    const first = String(first_name || "").trim();
+    const last = String(last_name || "").trim();
+    const computedFullName = `${first}${first && last ? " " : ""}${last}`.trim();
+    const nameToStore = String(full_name || computedFullName || "").trim();
+
+    if (!nameToStore || !email || !password || !school_id) {
       return res.status(400).json({
-        error: "full_name, email, password, and school_id are required",
+        error: "first_name/last_name (or full_name), email, password, and school_id are required",
       });
     }
 
@@ -295,13 +320,15 @@ app.post("/api/auth/register", async (req, res) => {
 
     const sectionValue = String(section || "").trim() || null;
 
+    await ensureUsersNameColumns();
+
     const inserted = await pool.query(
       `
-      INSERT INTO public.users (full_name, email, password_hash, role_id, school_id, section)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, full_name, email, school_id, section
+      INSERT INTO public.users (full_name, first_name, last_name, email, password_hash, role_id, school_id, section)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, full_name, first_name, last_name, email, school_id, section
       `,
-      [full_name, normalizedEmail, password_hash, roleId, school_id, sectionValue]
+      [nameToStore, first || null, last || null, normalizedEmail, password_hash, roleId, school_id, sectionValue]
     );
 
     // ✅ Return role string too
@@ -332,7 +359,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT u.id, u.full_name, u.email, u.password_hash, u.school_id, u.section, r.name AS role
+      SELECT u.id, u.full_name, u.first_name, u.last_name, u.email, u.password_hash, u.school_id, u.section, r.name AS role
       FROM public.users u
       LEFT JOIN public.roles r ON u.role_id = r.id
       WHERE LOWER(u.email) = $1 OR u.school_id = $2
@@ -355,6 +382,8 @@ app.post("/api/auth/login", async (req, res) => {
     return res.json({
       id: user.id,
       full_name: user.full_name,
+      first_name: user.first_name || null,
+      last_name: user.last_name || null,
       email: user.email,
       school_id: user.school_id,
       section: user.section,

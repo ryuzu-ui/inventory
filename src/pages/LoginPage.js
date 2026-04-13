@@ -19,7 +19,8 @@ export default function LoginPage() {
     typeof window !== "undefined" ? window.innerWidth <= 768 : false
   );
   const [loginValue, setLoginValue] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [idNumber, setIdNumber] = useState("");
   const [section, setSection] = useState("");
   const [email, setEmail] = useState("");
@@ -52,8 +53,13 @@ export default function LoginPage() {
   const handleSignUp = async () => {
     setLoading(true);
     try {
-      if (!fullName.trim()) {
-        toast.push({ type: "warning", title: "Missing information", description: "Full name is required." });
+      if (!firstName.trim()) {
+        toast.push({ type: "warning", title: "Missing information", description: "First name is required." });
+        return;
+      }
+
+      if (!lastName.trim()) {
+        toast.push({ type: "warning", title: "Missing information", description: "Last name is required." });
         return;
       }
 
@@ -77,7 +83,11 @@ export default function LoginPage() {
         return;
       }
 
-      const user = await register(fullName, email, password, {
+      const user = await register({
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        password,
         school_id: idNumber,
         section,
         role: signUpRole,
@@ -139,9 +149,16 @@ export default function LoginPage() {
         {isSignUp ? (
           <>
             <input
-              placeholder="Full name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              placeholder="First name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+            />
+
+            <input
+              placeholder="Last name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
               style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
             />
 
