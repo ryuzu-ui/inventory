@@ -59,6 +59,9 @@ export default function BorrowTable() {
 		position: "fixed",
 		inset: 0,
 		background: "rgba(0,0,0,0.4)",
+		display: "flex",
+		alignItems: "center",
+		justifyContent: "center",
 		zIndex: 20
 	};
 
@@ -67,10 +70,14 @@ export default function BorrowTable() {
 		color: theme.text,
 		width: "520px",
 		maxWidth: "92vw",
-		margin: "8% auto",
+		margin: 0,
 		padding: "20px",
 		borderRadius: "8px",
-		position: "relative"
+		position: "relative",
+		maxHeight: isMobile ? "85vh" : "80vh",
+		overflowY: "auto",
+		overflowX: "hidden",
+		WebkitOverflowScrolling: "touch",
 	};
 
 	/* FIXED: input style always black text */
