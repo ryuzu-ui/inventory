@@ -3,6 +3,9 @@ import { login, register } from "../components/services/authService";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 
+import logo1 from "../assets/logo1.jpg";
+import logo2 from "../assets/logo2.jpg";
+
 const inputStyle = {
   width: "100%",
   padding: "10px",
@@ -13,6 +16,8 @@ const inputStyle = {
   fontSize: "14px",
   height: "40px"
 };
+
+const logos = [logo1, logo2];
 
 export default function LoginPage() {
   const [isMobile, setIsMobile] = useState(
@@ -27,19 +32,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [logoIndex, setLogoIndex] = useState(0);
 
   const toast = useToast();
-
   const [signUpRole, setSignUpRole] = useState("student");
   const [adminPasscode, setAdminPasscode] = useState("");
-
   const navigate = useNavigate();
 
   const handleLogin = async () => {
     setLoading(true);
     try {
       const user = await login(loginValue, password);
-
       const role = String(user.role || "").toLowerCase();
       if (role === "admin") navigate("/admin", { replace: true });
       else navigate("/student", { replace: true });
@@ -57,27 +60,22 @@ export default function LoginPage() {
         toast.push({ type: "warning", title: "Missing information", description: "First name is required." });
         return;
       }
-
       if (!lastName.trim()) {
         toast.push({ type: "warning", title: "Missing information", description: "Last name is required." });
         return;
       }
-
       if (!email.trim()) {
         toast.push({ type: "warning", title: "Missing information", description: "Email is required." });
         return;
       }
-
       if (!idNumber.trim()) {
         toast.push({ type: "warning", title: "Missing information", description: "ID Number is required." });
         return;
       }
-
       if (!section.trim()) {
         toast.push({ type: "warning", title: "Missing information", description: "Section is required." });
         return;
       }
-
       if (signUpRole === "admin" && !adminPasscode.trim()) {
         toast.push({ type: "warning", title: "Missing information", description: "Admin passcode is required for admin signup." });
         return;
@@ -113,13 +111,16 @@ export default function LoginPage() {
   const mobileInputStyle = isMobile ? { fontSize: "16px" } : null;
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLogoIndex((prev) => (prev + 1) % logos.length);
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -134,135 +135,150 @@ export default function LoginPage() {
         background: "#0d47a1",
       }}
     >
-      <div
-        style={{
-          background: "white",
-          padding: "30px",
-          borderRadius: "10px",
-          width: "320px",
-        }}
-      >
-        <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
-          {isSignUp ? "Sign Up" : "Login"}
-        </h2>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
 
-        {isSignUp ? (
-          <>
-            <input
-              placeholder="First name"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-            />
-
-            <input
-              placeholder="Last name"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-            />
-
-            <input
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-            />
-
-            <input
-              placeholder="ID Number"
-              value={idNumber}
-              onChange={(e) => setIdNumber(e.target.value)}
-              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-            />
-
-            <input
-              placeholder="Section"
-              value={section}
-              onChange={(e) => setSection(e.target.value)}
-              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-            />
-
-            <select
-              value={signUpRole}
-              onChange={(e) => setSignUpRole(e.target.value)}
-              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-            >
-              <option value="student">Student</option>
-              <option value="admin">Admin</option>
-            </select>
-
-            {signUpRole === "admin" && (
-              <input
-                type="password"
-                placeholder="Admin passcode"
-                value={adminPasscode}
-                onChange={(e) => setAdminPasscode(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              />
-            )}
-
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-            />
-          </>
-        ) : (
-          <>
-            <input
-              placeholder="Email or ID Number"
-              value={loginValue}
-              onChange={(e) => setLoginValue(e.target.value)}
-              style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-            />
-
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={isMobile ? { ...inputStyle, fontSize: "16px" } : inputStyle}
-            />
-          </>
-        )}
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
+        {/* Rotating Logo */}
+        <img
+          src={logos[logoIndex]}
+          alt="Lyceum Logo"
           style={{
-            display: "block",
-            margin: "0 auto",
-            width: "100%",
-            padding: "12px",
-            marginTop: "6px",
-            background: "#0d47a1",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            fontWeight: 600,
-            opacity: loading ? 0.5 : 1,
-            pointerEvents: loading ? "none" : "auto",
+            width: "110px",
+            height: "110px",
+            objectFit: "contain",
+            marginBottom: "6px",
+            borderRadius: "50%",
+            transition: "opacity 0.4s ease",
+          }}
+        />
+
+        {/* School Name */}
+        <div style={{ textAlign: "center", marginBottom: "14px" }}>
+          <p style={{ color: "#FFD700", fontWeight: 700, fontSize: "16px", margin: 0 }}>
+            Lyceum of Alabang
+          </p>
+          <p style={{ color: "#90caf9", fontSize: "12px", margin: 0 }}>
+            College of Tourism & Hospitality Management
+          </p>
+        </div>
+
+        <div
+          style={{
+            background: "white",
+            padding: "30px",
+            borderRadius: "10px",
+            width: "320px",
           }}
         >
-          {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Login"}
-        </button>
+          <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
+            {isSignUp ? "Sign Up" : "Login"}
+          </h2>
 
-        <div style={{ textAlign: "center", marginTop: "18px" }}>
-          <span style={{ fontSize: "14px", color: "#666" }}>
-            {isSignUp
-              ? "Already have an account? "
-              : "Don't have an account? "}
-          </span>
+          {isSignUp ? (
+            <>
+              <input
+                placeholder="First name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+              />
+              <input
+                placeholder="Last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+              />
+              <input
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+              />
+              <input
+                placeholder="ID Number"
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value)}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+              />
+              <input
+                placeholder="Section"
+                value={section}
+                onChange={(e) => setSection(e.target.value)}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+              />
+              <select
+                value={signUpRole}
+                onChange={(e) => setSignUpRole(e.target.value)}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+              >
+                <option value="student">Student</option>
+                <option value="admin">Admin</option>
+              </select>
+              {signUpRole === "admin" && (
+                <input
+                  type="password"
+                  placeholder="Admin passcode"
+                  value={adminPasscode}
+                  onChange={(e) => setAdminPasscode(e.target.value)}
+                  style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+                />
+              )}
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+              />
+            </>
+          ) : (
+            <>
+              <input
+                placeholder="Email or ID Number"
+                value={loginValue}
+                onChange={(e) => setLoginValue(e.target.value)}
+                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={isMobile ? { ...inputStyle, fontSize: "16px" } : inputStyle}
+              />
+            </>
+          )}
+
           <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            style={styles.linkButton}
+            onClick={handleSubmit}
+            disabled={loading}
+            style={{
+              display: "block",
+              margin: "0 auto",
+              width: "100%",
+              padding: "12px",
+              marginTop: "6px",
+              background: "#0d47a1",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              fontWeight: 600,
+              opacity: loading ? 0.5 : 1,
+              pointerEvents: loading ? "none" : "auto",
+            }}
           >
-            {isSignUp ? "Login" : "Sign Up"}
+            {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Login"}
           </button>
+
+          <div style={{ textAlign: "center", marginTop: "18px" }}>
+            <span style={{ fontSize: "14px", color: "#666" }}>
+              {isSignUp ? "Already have an account? " : "Don't have an account? "}
+            </span>
+            <button onClick={() => setIsSignUp(!isSignUp)} style={styles.linkButton}>
+              {isSignUp ? "Login" : "Sign Up"}
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
   );
