@@ -29,6 +29,7 @@
     "recharts": "^3.7.0",
     "string-similarity": "^4.0.4",
     "web-vitals": "^2.1.4",
+    "yaml": "2.8.3",
     "xlsx": "^0.18.5"
   },
   "scripts": {
