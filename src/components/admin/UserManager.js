@@ -24,7 +24,6 @@ const td = {
 
 export default function UserManager() {
 	const { theme, themeName } = useTheme();
-	const isDark = themeName === "dark";
 
 	const [users, setUsers] = useState([]);
 	const [selectedIds, setSelectedIds] = useState([]);
