@@ -9,6 +9,7 @@ import { getItems } from "../helper/api";
 import BorrowRequests from "../components/admin/BorrowRequests";
 import ProblemReports from "../components/admin/ProblemReports";
 import { useTheme } from "../context/ThemeContext";
+import UserManager from "../components/admin/UserManager";
 
 export default function AdminPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -86,6 +87,8 @@ export default function AdminPage() {
             <FAQManager />
           </>
         )}
+
+        {page === "users" && <UserManager />}
       </div>
     </div>
   );

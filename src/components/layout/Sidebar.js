@@ -96,6 +96,14 @@ export default function Sidebar({ open, onClose, onNavigate }) {
 							onClose();
 						}}
 					/>
+
+					<MenuItem
+						label="Users"
+						onClick={() => {
+							onNavigate("users");
+							onClose();
+						}}
+					/>
 				</div>
 
 				<div

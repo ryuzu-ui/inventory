@@ -16,6 +16,40 @@ const inputStyle = {
   height: "40px"
 };
 
+function FloatingInput({ label, type = "text", value, onChange }) {
+	const [isFocused, setIsFocused] = useState(false);
+	const [hasValue, setHasValue] = useState(false);
+
+	useEffect(() => {
+		setHasValue(!!value);
+	}, [value]);
+
+	const isActive = isFocused || hasValue;
+
+	return (
+		<div style={styles.inputGroup}>
+			<input
+				type={type}
+				value={value}
+				onChange={onChange}
+				onFocus={() => setIsFocused(true)}
+				onBlur={() => setIsFocused(false)}
+				style={styles.input}
+			/>
+			<label
+				style={{
+					...styles.label,
+					top: isActive ? "-10px" : "50%",
+					fontSize: isActive ? "12px" : "14px",
+					color: "#9aa0a6",
+				}}
+			>
+				{label}
+			</label>
+		</div>
+	);
+}
+
 export default function LoginPage() {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth <= 768 : false
@@ -29,6 +63,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  
 
   const toast = useToast();
   const [signUpRole, setSignUpRole] = useState("student");
@@ -163,24 +198,47 @@ export default function LoginPage() {
 
           {isSignUp ? (
             <>
-              <input placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
-              <input placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
-              <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
-              <input placeholder="ID Number" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
-              <input placeholder="Section" value={section} onChange={(e) => setSection(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
-              <select value={signUpRole} onChange={(e) => setSignUpRole(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }}>
-                <option value="student">Student</option>
-                <option value="admin">Admin</option>
-              </select>
+              <FloatingInput label="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <FloatingInput label="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <FloatingInput label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <FloatingInput label="ID Number" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+              <FloatingInput label="Section" value={section} onChange={(e) => setSection(e.target.value)} />
+
+                <select value={signUpRole} onChange={(e) => setSignUpRole(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }}> 
+                  <option value="student">Student</option> 
+                  <option value="admin">Admin</option> 
+                </select>
+
               {signUpRole === "admin" && (
-                <input type="password" placeholder="Admin passcode" value={adminPasscode} onChange={(e) => setAdminPasscode(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
+                <FloatingInput
+                  label="Admin passcode"
+                  type="password"
+                  value={adminPasscode}
+                  onChange={(e) => setAdminPasscode(e.target.value)}
+                />
               )}
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
+
+              <FloatingInput
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </>
           ) : (
             <>
-              <input placeholder="Email or ID Number" value={loginValue} onChange={(e) => setLoginValue(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
-              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={isMobile ? { ...inputStyle, fontSize: "16px" } : inputStyle} />
+            <FloatingInput
+              label="Email or ID Number"
+              value={loginValue}
+              onChange={(e) => setLoginValue(e.target.value)}
+            />
+
+            <FloatingInput
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />  
             </>
           )}
 
@@ -243,5 +301,32 @@ const styles = {
     textDecoration: "underline",
     fontSize: "14px",
     padding: 0,
+  },
+
+  inputGroup: {
+    position: "relative",
+    marginBottom: "24px",
+  },
+
+  input: {
+    width: "100%",
+    padding: "12px 10px",
+    border: "1px solid #dadce0",
+    borderRadius: "6px",
+    fontSize: "14px",
+    outline: "none",
+  },
+
+  label: {
+    position: "absolute",
+    left: "10px", // 👈 ibalik mo sa original spacing mo
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "transparent", // 👈 FIX
+    padding: "0", // 👈 tanggal padding para di mukhang patch
+    color: "#9aa0a6",
+    fontSize: "14px",
+    pointerEvents: "none",
+    transition: "0.2s ease",
   },
 };

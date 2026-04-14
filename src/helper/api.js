@@ -333,3 +333,46 @@ export async function getProblemReports() {
   if (!ok) throw new Error(data?.error || "Failed to load reports");
   return Array.isArray(data) ? data : [];
 }
+
+// --------------------
+// USERS (ADMIN)
+// --------------------
+
+// GET USERS
+export async function getUsers() {
+  const res = await fetch(`${API_BASE}/api/users`, {
+    headers: { ...adminHeaders() },
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to fetch users");
+  return Array.isArray(data) ? data : [];
+}
+
+// UPDATE ROLE
+export async function updateUserRole(id, role_id) {
+  const res = await fetch(`${API_BASE}/api/users/${id}/role`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...adminHeaders(),
+    },
+    body: JSON.stringify({ role_id }),
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to update role");
+  return data;
+}
+
+// DELETE USER
+export async function deleteUser(id) {
+  const res = await fetch(`${API_BASE}/api/users/${id}`, {
+    method: "DELETE",
+    headers: { ...adminHeaders() },
+  });
+
+  const { ok, data } = await parseJson(res);
+  if (!ok) throw new Error(data?.error || "Failed to delete user");
+  return data;
+}

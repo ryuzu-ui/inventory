@@ -7,12 +7,19 @@ import { useTheme } from "../context/ThemeContext";
 import ChatbotWidget from "../components/student/ChatbotWidget";
 import { getUser } from "../components/services/authService";
 import { getNotifications } from "../helper/api";
+import { useNavigate } from "react-router-dom";
 
 export default function StudentPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [page, setPage] = useState("home");
   const [notification, setNotification] = useState("");
   const { theme, setThemeScope } = useTheme();
+
+  const navigate = useNavigate();
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => !prev);
+  };
 
   const [recentActivity, setRecentActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
@@ -73,7 +80,12 @@ export default function StudentPage() {
         touchAction: "pan-y"
       }}
     >
-      <StudentHeader onMenuClick={() => setSidebarOpen(true)} />
+      <StudentHeader
+        onMenuClick={toggleSidebar}
+        onNavigate={(page) => {
+          if (page === "home") navigate("/user/home");
+        }}
+      />
 
       <div style={{
         position: "fixed",
