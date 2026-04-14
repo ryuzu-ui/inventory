@@ -13,7 +13,7 @@ import {
     openNotificationsStream,
 } from "../../helper/api";
 
-export default function StudentHeader({ onMenuClick }) {
+export default function StudentHeader({ onMenuClick, onNavigate }) {
 
     const [showProfile, setShowProfile] = useState(false);
     const [activePanel, setActivePanel] = useState(null);
@@ -292,7 +292,12 @@ export default function StudentHeader({ onMenuClick }) {
                     >
                         ☰
                     </button>
-                    <b style={{ color: theme.headerText }}>Student Borrowing Portal</b>
+                    <b 
+                        style={{ color: theme.headerText, cursor: "pointer" }}
+                        onClick={() => onNavigate && onNavigate("home")}
+                    >
+                        Student Borrowing Portal
+                    </b>
                 </div>
 
                 {/* RIGHT */}
