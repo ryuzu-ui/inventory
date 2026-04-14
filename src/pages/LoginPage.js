@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "../context/ToastContext";
 
 import logo1 from "../assets/logo1.jpg";
-import logo2 from "../assets/logo2.jpg";
 
 const inputStyle = {
   width: "100%",
@@ -16,8 +15,6 @@ const inputStyle = {
   fontSize: "14px",
   height: "40px"
 };
-
-const logos = [logo1, logo2];
 
 export default function LoginPage() {
   const [isMobile, setIsMobile] = useState(
@@ -32,7 +29,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [logoIndex, setLogoIndex] = useState(0);
 
   const toast = useToast();
   const [signUpRole, setSignUpRole] = useState("student");
@@ -116,13 +112,6 @@ export default function LoginPage() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLogoIndex((prev) => (prev + 1) % logos.length);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <div
       style={{
@@ -137,9 +126,9 @@ export default function LoginPage() {
     >
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
 
-        {/* Rotating Logo */}
+        {/* Logo */}
         <img
-          src={logos[logoIndex]}
+          src={logo1}
           alt="Lyceum Logo"
           style={{
             width: "110px",
@@ -147,7 +136,6 @@ export default function LoginPage() {
             objectFit: "contain",
             marginBottom: "6px",
             borderRadius: "50%",
-            transition: "opacity 0.4s ease",
           }}
         />
 
@@ -175,76 +163,24 @@ export default function LoginPage() {
 
           {isSignUp ? (
             <>
-              <input
-                placeholder="First name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              />
-              <input
-                placeholder="Last name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              />
-              <input
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              />
-              <input
-                placeholder="ID Number"
-                value={idNumber}
-                onChange={(e) => setIdNumber(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              />
-              <input
-                placeholder="Section"
-                value={section}
-                onChange={(e) => setSection(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              />
-              <select
-                value={signUpRole}
-                onChange={(e) => setSignUpRole(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              >
+              <input placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
+              <input placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
+              <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
+              <input placeholder="ID Number" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
+              <input placeholder="Section" value={section} onChange={(e) => setSection(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
+              <select value={signUpRole} onChange={(e) => setSignUpRole(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }}>
                 <option value="student">Student</option>
                 <option value="admin">Admin</option>
               </select>
               {signUpRole === "admin" && (
-                <input
-                  type="password"
-                  placeholder="Admin passcode"
-                  value={adminPasscode}
-                  onChange={(e) => setAdminPasscode(e.target.value)}
-                  style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-                />
+                <input type="password" placeholder="Admin passcode" value={adminPasscode} onChange={(e) => setAdminPasscode(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
               )}
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              />
+              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
             </>
           ) : (
             <>
-              <input
-                placeholder="Email or ID Number"
-                value={loginValue}
-                onChange={(e) => setLoginValue(e.target.value)}
-                style={{ ...inputStyle, ...(mobileInputStyle || {}) }}
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                style={isMobile ? { ...inputStyle, fontSize: "16px" } : inputStyle}
-              />
+              <input placeholder="Email or ID Number" value={loginValue} onChange={(e) => setLoginValue(e.target.value)} style={{ ...inputStyle, ...(mobileInputStyle || {}) }} />
+              <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} style={isMobile ? { ...inputStyle, fontSize: "16px" } : inputStyle} />
             </>
           )}
 
