@@ -23,7 +23,7 @@ const td = {
 };
 
 export default function UserManager() {
-	const { theme, themeName } = useTheme();
+	const { theme } = useTheme();
 
 	const [users, setUsers] = useState([]);
 	const [selectedIds, setSelectedIds] = useState([]);
